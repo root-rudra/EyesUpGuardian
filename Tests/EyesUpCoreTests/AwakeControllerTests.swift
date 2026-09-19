@@ -353,4 +353,45 @@ import Testing
         #expect(controller.holds.isEmpty)
         #expect(provider.live.isEmpty)
     }
+
+    // MARK: Automation
+
+    @Test func automationStartCreatesItsOwnHold() throws {
+        let controller = makeController()
+        _ = try controller.apply(.start(duration: .finite(3600), display: true))
+        #expect(controller.holds.count == 1)
+        #expect(controller.holds.first?.source == .automation)
+        #expect(provider.liveKinds == [.preventIdleSystemSleep, .preventDisplaySleep])
+
+        _ = try controller.apply(.start(duration: .finite(1800), display: false))
+        #expect(controller.holds.count == 1) // replaces its previous session
+        #expect(controller.awakeUntil == referenceDate.addingTimeInterval(1800))
+    }
+
+    @Test func stopOnlyEndsAutomationHolds() throws {
+        let controller = makeController()
+        try controller.startTimer(duration: 3600, policy: .system)
+        _ = try controller.apply(.start(duration: .infinite, display: false))
+        _ = try controller.apply(.stop)
+        #expect(controller.holds.map(\.source) == [.manual])
+        #expect(controller.isAwake)
+    }
+
+    @Test func automationExtendAddsToItsOwnHoldOrStartsOne() throws {
+        let controller = makeController()
+        _ = try controller.apply(.start(duration: .finite(3600), display: false))
+        _ = try controller.apply(.extend(by: 1800))
+        #expect(controller.awakeUntil == referenceDate.addingTimeInterval(5400))
+
+        let fresh = makeController()
+        _ = try fresh.apply(.extend(by: 1800))
+        #expect(fresh.holds.count == 1)
+        #expect(fresh.holds.first?.source == .automation)
+    }
+
+    @Test func automationRejectsAbsurdDurations() {
+        let controller = makeController()
+        #expect(throws: AwakeError.invalidDuration) { try controller.apply(.extend(by: 0)) }
+        #expect(throws: AwakeError.invalidDuration) { try controller.apply(.start(duration: .finite(1e12), display: false)) }
+    }
 }

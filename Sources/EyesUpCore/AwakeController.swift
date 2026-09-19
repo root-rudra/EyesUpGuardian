@@ -190,6 +190,52 @@ public final class AwakeController {
         holds.contains { $0.source == .trigger(triggerID) }
     }
 
+    // MARK: Automation (spec §5.1)
+
+    /// Runs an already-validated link command. Automation only ever touches its own holds,
+    /// so a link can never cancel a session you started by hand.
+    @discardableResult
+    public func apply(_ command: AutomationCommand) throws -> String {
+        switch command {
+        case .start(let duration, let display):
+            let policy: SleepPolicy = display ? [.system, .display] : .system
+            let now = clock.now
+            switch duration {
+            case .finite(let seconds):
+                guard seconds > 0, seconds <= Self.maxManualDuration else { throw AwakeError.invalidDuration }
+                holds.removeAll { $0.source == .automation }
+                holds.append(Hold(source: .automation, label: "Automation \(TimeFormatting.duration(seconds))",
+                                  policy: policy, end: .deadline(now.addingTimeInterval(seconds)), createdAt: now))
+                commit()
+                return "Automation: keeping your Mac awake for \(TimeFormatting.duration(seconds))."
+            case .infinite:
+                holds.removeAll { $0.source == .automation }
+                holds.append(Hold(source: .automation, label: "Automation (no end time)",
+                                  policy: policy, end: .indefinite, createdAt: now))
+                commit()
+                return "Automation: keeping your Mac awake with no end time."
+            }
+        case .stop:
+            remove(ids: Set(holds.filter { $0.source == .automation }.map(\.id)))
+            return "Automation: stopped its keep-awake session."
+        case .extend(let seconds):
+            guard seconds > 0, seconds <= Self.maxManualDuration else { throw AwakeError.invalidDuration }
+            var extended = false
+            for index in holds.indices where holds[index].source == .automation {
+                guard case .deadline(let date) = holds[index].end else { continue }
+                let newDate = date.addingTimeInterval(seconds)
+                holds[index].end = .deadline(newDate)
+                holds[index].label = "Automation until " + newDate.formatted(date: .omitted, time: .shortened)
+                extended = true
+            }
+            if extended {
+                commit()
+            } else {
+                return try apply(.start(duration: .finite(seconds), display: false))
+            }
+            return "Automation: extended by \(TimeFormatting.duration(seconds))."
+        }
+    }
     // MARK: Safety
 
     public func setSafetyCap(_ cap: TimeInterval?) {
