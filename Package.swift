@@ -21,5 +21,9 @@ let package = Package(
             name: "EyesUpCoreTests",
             dependencies: ["EyesUpCore"]
         ),
+        .testTarget(
+            name: "EyesUpAppTests",
+            dependencies: ["EyesUpApp"]
+        ),
     ]
 )

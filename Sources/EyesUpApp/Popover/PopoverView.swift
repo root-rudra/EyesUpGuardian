@@ -105,10 +105,7 @@ struct PopoverView: View {
     }
 
     private func entryButton(_ title: String, _ target: PopoverFormState.Entry) -> some View {
-        Button(title) {
-            form.entry = form.entry == target ? .none : target
-            form.errorMessage = nil
-        }
+        Button(title) { form.select(target, now: Date()) }
         .buttonStyle(.glass)
     }
 
@@ -259,4 +256,12 @@ final class PopoverFormState {
     var pidText = ""
     var errorMessage: String?
     var displayForNew = false
+
+    /// Opens a panel (or closes it if already open). Opening Until… starts from an hour after *now*,
+    /// not from whenever this state was created.
+    func select(_ target: Entry, now: Date) {
+        entry = entry == target ? .none : target
+        errorMessage = nil
+        if entry == .until { untilDate = now.addingTimeInterval(3600) }
+    }
 }
