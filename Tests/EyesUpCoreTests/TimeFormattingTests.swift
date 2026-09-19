@@ -32,4 +32,15 @@ import Testing
         #expect(TimeFormatting.remainingFraction(now: start.addingTimeInterval(-10), start: start, end: end) == 1)
         #expect(TimeFormatting.remainingFraction(now: start, start: start, end: start) == 0)
     }
+
+    @Test func hugeAndInvalidValuesNeverTrap() {
+        #expect(TimeFormatting.menuBar(remaining: 1e300) == "999:00")
+        #expect(TimeFormatting.countdown(1e300) == "999:00:00")
+        #expect(TimeFormatting.duration(1e300) == "999h")
+        #expect(TimeFormatting.menuBar(remaining: .infinity) == "999:00")
+        #expect(TimeFormatting.menuBar(remaining: .nan) == "0m")
+        #expect(TimeFormatting.countdown(.nan) == "0:00")
+        #expect(TimeFormatting.duration(-1e300) == "<1m")
+        #expect(TimeFormatting.countdown(-.infinity) == "0:00")
+    }
 }

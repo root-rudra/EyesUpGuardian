@@ -1,8 +1,16 @@
 import Foundation
 
 public enum TimeFormatting {
+    /// Longest duration any readout shows. Larger, infinite or NaN inputs are clamped so formatting can never trap.
+    public static let displayCap: TimeInterval = 999 * 3600
+
+    private static func clamped(_ seconds: TimeInterval) -> TimeInterval {
+        seconds.isNaN ? 0 : min(max(seconds, -displayCap), displayCap)
+    }
+
     /// Hold labels: "2h", "1h 30m", "15m", "<1m".
     public static func duration(_ seconds: TimeInterval) -> String {
+        let seconds = clamped(seconds)
         let minutes = Int((seconds / 60).rounded())
         guard minutes >= 1 else { return "<1m" }
         let hours = minutes / 60
@@ -14,6 +22,7 @@ public enum TimeFormatting {
 
     /// Menu-bar readout: "1:42" from one hour up, "42m" below, rounded up to the next minute.
     public static func menuBar(remaining seconds: TimeInterval) -> String {
+        let seconds = clamped(seconds)
         guard seconds > 0 else { return "0m" }
         let minutes = Int((seconds / 60).rounded(.up))
         if minutes >= 60 { return String(format: "%d:%02d", minutes / 60, minutes % 60) }
@@ -22,6 +31,7 @@ public enum TimeFormatting {
 
     /// Live countdown: "1:42:10" or "42:10".
     public static func countdown(_ seconds: TimeInterval) -> String {
+        let seconds = clamped(seconds)
         let total = max(0, Int(seconds.rounded(.up)))
         let hours = total / 3600
         let minutes = (total % 3600) / 60

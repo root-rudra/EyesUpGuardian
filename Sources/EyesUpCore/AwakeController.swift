@@ -156,7 +156,11 @@ public final class AwakeController {
             case .missing:
                 break
             case .loaded(let saved):
-                holds = HoldRestorer.restorable(saved, now: clock.now, inspector: inspector)
+                let valid = saved.compactMap { HoldRestorer.sanitized($0, now: clock.now) }
+                if valid.count < saved.count {
+                    storeNotice = "Some saved keep-awake sessions were invalid and were discarded."
+                }
+                holds = HoldRestorer.restorable(valid, now: clock.now, inspector: inspector)
             case .corrupt:
                 storeNotice = "Saved keep-awake sessions couldn't be read, so they were reset."
             }

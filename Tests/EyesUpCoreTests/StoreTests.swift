@@ -77,4 +77,28 @@ import Testing
         )
         #expect(restored.map(\.id) == [keepIndefinite.id, keepFuture.id, keepInGrace.id, keepAlive.id])
     }
+
+    @Test func restoreDropsHoldsOutsideCreationLimits() {
+        let now = referenceDate
+        let absurd = makeHold(end: .deadline(Date(timeIntervalSinceReferenceDate: 1e300)))
+        let tenYears = makeHold(end: .deadline(now.addingTimeInterval(10 * 365 * 86_400)))
+        let hugeGrace = makeHold(end: .deadline(now.addingTimeInterval(60)), grace: 1e12)
+        let negativeGrace = makeHold(end: .deadline(now.addingTimeInterval(60)), grace: -5)
+        let longLabel = makeHold(label: String(repeating: "x", count: 500))
+        let unknownPolicyOnly = makeHold(policy: SleepPolicy(rawValue: 1 << 10))
+        let triggerSourced = makeHold(end: .indefinite, source: .trigger(UUID()))
+        let fine = makeHold(end: .deadline(now.addingTimeInterval(3600)), grace: 300)
+
+        let restored = HoldRestorer.restorable(
+            [absurd, tenYears, hugeGrace, negativeGrace, longLabel, unknownPolicyOnly, triggerSourced, fine],
+            now: now, inspector: FakeInspector()
+        )
+        #expect(restored.map(\.id) == [fine.id])
+    }
+
+    @Test func restoreMasksUnknownPolicyBits() {
+        let hold = makeHold(policy: SleepPolicy(rawValue: SleepPolicy.system.rawValue | 1 << 10))
+        let restored = HoldRestorer.restorable([hold], now: referenceDate, inspector: FakeInspector())
+        #expect(restored.first?.policy == .system)
+    }
 }

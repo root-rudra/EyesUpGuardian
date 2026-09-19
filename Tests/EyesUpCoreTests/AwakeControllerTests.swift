@@ -218,6 +218,16 @@ import Testing
         #expect(controller.storeNotice != nil)
     }
 
+    @Test func restoreDropsOutOfRangeHoldsAndReportsIt() throws {
+        let store = tempStore()
+        try store.save([makeHold(end: .deadline(Date(timeIntervalSinceReferenceDate: 1e300)))])
+        let controller = makeController(store: store)
+        controller.restore()
+        #expect(controller.holds.isEmpty)
+        #expect(provider.live.isEmpty)
+        #expect(controller.storeNotice != nil)
+    }
+
     @Test func shutdownStopsEverythingAndSavesEmpty() throws {
         let store = tempStore()
         let controller = makeController(store: store)
