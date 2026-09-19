@@ -48,6 +48,15 @@ final class HeadsUpNotifier: NSObject, UNUserNotificationCenterDelegate {
         center.add(UNNotificationRequest(identifier: "heads-up", content: content, trigger: nil)) { _ in }
     }
 
+    /// A short informational banner: trigger changes, safety releases, automation results.
+    func postInfo(_ body: String, id: String) {
+        guard let center else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "EyesUpGuardian"
+        content.body = body
+        center.add(UNNotificationRequest(identifier: id, content: content, trigger: nil)) { _ in }
+    }
+
     private func handle(actionID: String) {
         switch Action(rawValue: actionID) {
         case .extend30: try? controller.extend(by: 1800, policy: controller.currentPolicy)
