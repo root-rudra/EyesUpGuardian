@@ -145,3 +145,15 @@ final class FakeThermal: ThermalMonitoring {
         handler?()
     }
 }
+
+final class FakeSMC: SMCReading, @unchecked Sendable {
+    private let values: [String: Double]
+    private(set) var readCount = 0
+
+    init(values: [String: Double]) { self.values = values }
+
+    func read(_ key: String) -> Double? {
+        readCount += 1
+        return values[key]
+    }
+}
