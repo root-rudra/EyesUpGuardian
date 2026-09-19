@@ -1,4 +1,4 @@
-.PHONY: app test test-integration install run clean
+.PHONY: app test test-integration perf install run clean
 
 # Load Swift Testing's macro plugin explicitly. With only the Command Line Tools installed, SwiftPM's
 # build system intermittently omits it on incremental builds ("plugin for module 'TestingMacros' not found").
@@ -14,6 +14,9 @@ test:
 
 test-integration:
 	EYESUP_INTEGRATION=1 $(SWIFT_TEST)
+
+perf: app
+	Scripts/perf.sh
 
 install: app
 	rm -rf /Applications/EyesUpGuardian.app
