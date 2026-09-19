@@ -11,10 +11,12 @@ struct EyesUpGuardianApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var environment: AppEnvironment?
     private var statusItem: StatusItemController?
+    private var headsUp: HeadsUpNotifier?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let environment = AppEnvironment()
         environment.start()
+        headsUp = HeadsUpNotifier(controller: environment.controller)
         let statusItem = StatusItemController(controller: environment.controller)
         statusItem.setPopoverContent(PopoverView(controller: environment.controller, form: PopoverFormState()))
         self.statusItem = statusItem
