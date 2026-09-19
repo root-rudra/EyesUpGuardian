@@ -43,6 +43,16 @@ public enum ThermalLevel: Int, Sendable, Comparable, CaseIterable {
     case nominal, fair, serious, critical
 
     public static func < (lhs: ThermalLevel, rhs: ThermalLevel) -> Bool { lhs.rawValue < rhs.rawValue }
+
+    /// Plain words for the UI: macOS's own names ("nominal", "fair") don't mean much to a reader.
+    public var title: String {
+        switch self {
+        case .nominal: "Normal"
+        case .fair: "Warm"
+        case .serious: "Hot"
+        case .critical: "Too hot"
+        }
+    }
 }
 
 @MainActor

@@ -8,12 +8,13 @@ import SwiftUI
 @Observable
 final class DashboardState {
     enum Tab: String, CaseIterable, Identifiable, Hashable {
-        case triggers, settings
+        case overview, triggers, settings
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
+            case .overview: "Overview"
             case .triggers: "Triggers"
             case .settings: "Settings"
             }
@@ -21,13 +22,16 @@ final class DashboardState {
 
         var symbol: String {
             switch self {
+            case .overview: "gauge.with.dots.needle.50percent"
             case .triggers: "bolt.badge.clock"
             case .settings: "gearshape"
             }
         }
     }
 
-    var tab: Tab = .triggers
+    var tab: Tab = .overview
+    /// Kept for the window's lifetime so switching tabs doesn't restart sampling from scratch.
+    var overviewStats: StatsViewModel?
     var editingDraft: TriggerDraft?
     var errorMessage: String?
 }
@@ -48,6 +52,13 @@ final class DashboardWindowController {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate()
             return
+        }
+        if state.overviewStats == nil {
+            state.overviewStats = StatsViewModel(
+                center: environment.metrics,
+                ids: [.cpu, .memory, .system, .storage, .network, .power, .fans, .temperature, .gpu, .otherAssertions],
+                interval: 1
+            )
         }
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 780, height: 540),
@@ -79,6 +90,8 @@ struct DashboardView: View {
             ZStack {
                 AmbientBackground(mood: environment.controller.isAwake ? .awake : .idle)
                 switch state.tab {
+                case .overview:
+                    if let stats = state.overviewStats { OverviewTab(environment: environment, stats: stats) }
                 case .triggers: TriggersTab(environment: environment, state: state)
                 case .settings: SettingsTab(environment: environment)
                 }

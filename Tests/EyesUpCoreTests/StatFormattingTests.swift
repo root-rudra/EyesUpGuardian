@@ -47,4 +47,11 @@ import Testing
         #expect(StatFormatting.rpm(.nan) == StatFormatting.unavailable)
         #expect(StatFormatting.idle(nil) == StatFormatting.unavailable)
     }
+
+    @Test func thermalLevelsHaveReadableNames() {
+        #expect(ThermalLevel.nominal.title == "Normal")
+        #expect(ThermalLevel.fair.title == "Warm")
+        #expect(ThermalLevel.serious.title == "Hot")
+        #expect(ThermalLevel.critical.title == "Too hot")
+    }
 }
