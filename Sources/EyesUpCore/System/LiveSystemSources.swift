@@ -174,6 +174,8 @@ public final class LivePowerSourceInfo: PowerSourceInfo {
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .defaultMode)
         return CallbackObservation { [weak self] in
             CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .defaultMode)
+            CFRunLoopSourceInvalidate(source)
+            _ = box // the registration keeps its own box alive, whatever happens to the owner
             self?.observations[token] = nil
         }
     }
@@ -215,5 +217,12 @@ final class CallbackObservation: ScheduledTask {
     func cancel() {
         onCancel?()
         onCancel = nil
+    }
+
+    /// A dropped observation must still unregister: the C callback would otherwise keep a pointer
+    /// to a freed box.
+    deinit {
+        guard let onCancel else { return }
+        MainActor.assumeIsolated { onCancel() }
     }
 }

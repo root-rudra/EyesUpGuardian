@@ -409,4 +409,39 @@ import Testing
         #expect(throws: AwakeError.invalidDuration) { try controller.apply(.extend(by: 0)) }
         #expect(throws: AwakeError.invalidDuration) { try controller.apply(.start(duration: .finite(1e12), display: false)) }
     }
+
+    @Test func manyHoldsWatchingOnePIDArmOneWatch() throws {
+        let identity = ProcessIdentity(pid: 4242, startTime: 5)
+        inspector.identities[4242] = identity
+        let store = tempStore()
+        try store.save((0..<20).map {
+            makeHold(label: "Watch \($0)", end: .processExit(identity), createdAt: referenceDate)
+        })
+        let controller = makeController(store: store)
+        controller.restore()
+        #expect(controller.holds.count == 20)
+        #expect(watcher.watched.count == 1) // one process, one kqueue source
+
+        watcher.simulateExit(identity)
+        #expect(controller.holds.isEmpty) // all of them end together, in one pass
+    }
+
+    @Test func automationStartClampsItsOwnDurationEvenIfAskedForMore() throws {
+        let controller = makeController()
+        _ = try controller.apply(.start(duration: .finite(999 * 3600), display: false))
+        #expect(controller.awakeUntil == referenceDate.addingTimeInterval(AutomationParser.maxDuration))
+
+        _ = try controller.apply(.start(duration: .infinite, display: false))
+        #expect(controller.awakeUntil == referenceDate.addingTimeInterval(AutomationParser.maxDuration))
+    }
+
+    @Test func manualExtendLeavesAutomationHoldsAlone() throws {
+        let controller = makeController()
+        _ = try controller.apply(.start(duration: .finite(3600), display: false))
+        try controller.extend(by: 24 * 3600, policy: .system)
+        // The link's session keeps its own end; the manual extend started a manual timer instead.
+        #expect(controller.holds.filter { $0.source == .automation }.count == 1)
+        #expect(controller.holds.contains { $0.source == .manual })
+        #expect(controller.awakeUntil == referenceDate.addingTimeInterval(24 * 3600))
+    }
 }

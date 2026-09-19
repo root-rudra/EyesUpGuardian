@@ -77,4 +77,10 @@ import Testing
         #expect(threshold.sustain == TriggerValidator.minActivityTiming)
         #expect(threshold.release == TriggerValidator.minActivityTiming)
     }
+
+    @Test func summaryNeverTrapsOnAbsurdThresholds() {
+        #expect(!makeTrigger(condition: .cpuBusy(ActivityThreshold(value: .nan))).summary.isEmpty)
+        #expect(!makeTrigger(condition: .cpuBusy(ActivityThreshold(value: .infinity))).summary.isEmpty)
+        #expect(!makeTrigger(condition: .networkBusy(ActivityThreshold(value: .nan))).summary.isEmpty)
+    }
 }

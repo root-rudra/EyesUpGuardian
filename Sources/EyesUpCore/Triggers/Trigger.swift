@@ -92,7 +92,7 @@ public struct Trigger: Identifiable, Codable, Hashable, Sendable {
         case .appRunning(let ids): "While \(Self.list(ids)) is open"
         case .processRunning(let names): "While \(Self.list(names)) is running"
         case .schedule(let schedule): "On \(schedule.weekdaySummary) from \(Schedule.time(schedule.startMinute)) to \(Schedule.time(schedule.endMinute))"
-        case .cpuBusy(let threshold): "While CPU is above \(Int(threshold.value))% for \(TimeFormatting.duration(threshold.sustain))"
+        case .cpuBusy(let threshold): "While CPU is above \(Int(clampedPercent(threshold.value)))% for \(TimeFormatting.duration(threshold.sustain))"
         case .networkBusy(let threshold): "While network traffic is above \(Self.rate(threshold.value)) for \(TimeFormatting.duration(threshold.sustain))"
         case .diskBusy(let threshold): "While disk writes are above \(Self.rate(threshold.value)) for \(TimeFormatting.duration(threshold.sustain))"
         case .displayConnected(let display): "While \(display.name) is connected"
@@ -105,7 +105,13 @@ public struct Trigger: Identifiable, Codable, Hashable, Sendable {
         return values.dropLast().joined(separator: ", ") + " or " + (values.last ?? "")
     }
 
+    /// Summaries are drawn for unvalidated drafts too, and Int(nan) traps.
+    private func clampedPercent(_ value: Double) -> Double {
+        value.isNaN ? 0 : min(max(value, 0), 100)
+    }
+
     private static func rate(_ bytesPerSecond: Double) -> String {
+        guard bytesPerSecond.isFinite else { return "any amount" }
         let megabytes = bytesPerSecond / 1_000_000
         return megabytes >= 1 ? String(format: "%.0f MB/s", megabytes) : String(format: "%.0f KB/s", bytesPerSecond / 1000)
     }

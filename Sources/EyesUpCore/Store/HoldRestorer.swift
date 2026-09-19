@@ -7,6 +7,9 @@ public enum HoldRestorer {
     public static let maxGrace: TimeInterval = 24 * 3600
     /// Longest label a saved hold may carry.
     public static let maxLabelLength = 200
+    /// More sessions than any person creates. A tampered file could otherwise hand the app
+    /// thousands of holds, and every change re-checks and re-saves all of them.
+    public static let maxHolds = 64
     /// A saved hold may be stamped slightly in the future (clock changes), but not meaningfully so.
     public static let maxClockSkew: TimeInterval = 300
     public static let knownPolicy: SleepPolicy = [.system, .display, .disk, .systemOnAC]
@@ -28,7 +31,7 @@ public enum HoldRestorer {
     }
 
     public static func restorable(_ holds: [Hold], now: Date, inspector: any ProcessInspecting) -> [Hold] {
-        holds.compactMap { sanitized($0, now: now) }.filter { hold in
+        holds.prefix(maxHolds).compactMap { sanitized($0, now: now) }.filter { hold in
             guard !hold.source.isTrigger else { return false }
             switch hold.end {
             case .indefinite:

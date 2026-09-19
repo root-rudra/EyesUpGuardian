@@ -49,11 +49,15 @@ public final class AwakeEngine {
         return String(full.prefix(maxNameLength - 1)) + "…"
     }
 
-    /// macOS formats times with a narrow no-break space (U+202F), and `pmset -g assertions` prints
-    /// an empty name when one is present. Exotic whitespace becomes a plain space so the audit trail stays readable.
+    /// macOS formats times with a narrow no-break space (U+202F), and `pmset -g assertions` prints an empty
+    /// name when one is present. Exotic whitespace becomes a plain space so the audit trail stays readable, and
+    /// control characters go too: a tampered file could otherwise forge extra lines in that audit trail.
     static func printable(_ name: String) -> String {
         String(name.map { character in
-            character.unicodeScalars.allSatisfy { $0.properties.isWhitespace && !$0.isASCII } ? " " : character
+            let replace = character.unicodeScalars.allSatisfy { scalar in
+                (scalar.properties.isWhitespace && !scalar.isASCII) || scalar.properties.generalCategory == .control
+            }
+            return replace ? " " : character
         })
     }
 }

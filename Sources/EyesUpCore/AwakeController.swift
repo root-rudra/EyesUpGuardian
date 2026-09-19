@@ -48,7 +48,7 @@ public final class AwakeController {
     @ObservationIgnored private let clock: any WallClock
     @ObservationIgnored private let holdStore: JSONFileStore<[Hold]>?
     @ObservationIgnored private let ownPID: Int32
-    @ObservationIgnored private var watches: [UUID: any ScheduledTask] = [:]
+    @ObservationIgnored private var watches: [ProcessIdentity: any ScheduledTask] = [:]
 
     public init(
         provider: any PowerAssertionProviding,
@@ -122,7 +122,8 @@ public final class AwakeController {
     public func extend(by seconds: TimeInterval, policy: SleepPolicy) throws {
         guard seconds > 0, seconds <= Self.maxManualDuration else { throw AwakeError.invalidDuration }
         var extended = false
-        for index in holds.indices where !holds[index].source.isTrigger {
+        // Only the user's own sessions: a link's session keeps the ceiling `apply(.extend)` gives it.
+        for index in holds.indices where holds[index].source == .manual {
             guard case .deadline(let date) = holds[index].end else { continue }
             let newDate = date.addingTimeInterval(seconds)
             holds[index].end = .deadline(newDate)
@@ -201,19 +202,18 @@ public final class AwakeController {
             let policy: SleepPolicy = display ? [.system, .display] : .system
             let now = clock.now
             switch duration {
-            case .finite(let seconds):
-                guard seconds > 0, seconds <= Self.maxManualDuration else { throw AwakeError.invalidDuration }
+            case .finite(let requested):
+                guard requested > 0, requested <= Self.maxManualDuration else { throw AwakeError.invalidDuration }
+                // Belt and braces: the parser already clamps, but a link's session is never longer than this.
+                let seconds = min(requested, min(AutomationParser.maxDuration, safetyCap ?? .greatestFiniteMagnitude))
                 holds.removeAll { $0.source == .automation }
                 holds.append(Hold(source: .automation, label: "Automation \(TimeFormatting.duration(seconds))",
                                   policy: policy, end: .deadline(now.addingTimeInterval(seconds)), createdAt: now))
                 commit()
                 return "Automation: keeping your Mac awake for \(TimeFormatting.duration(seconds))."
             case .infinite:
-                holds.removeAll { $0.source == .automation }
-                holds.append(Hold(source: .automation, label: "Automation (no end time)",
-                                  policy: policy, end: .indefinite, createdAt: now))
-                commit()
-                return "Automation: keeping your Mac awake with no end time."
+                // A link may never hold with no end; "inf" means the longest a link may ask for.
+                return try apply(.start(duration: .finite(AutomationParser.maxDuration), display: display))
             }
         case .stop:
             remove(ids: Set(holds.filter { $0.source == .automation }.map(\.id)))
@@ -303,16 +303,25 @@ public final class AwakeController {
         commit()
     }
 
-    private func processExited(holdID: UUID) {
-        watches[holdID] = nil
-        guard let index = holds.firstIndex(where: { $0.id == holdID }) else { return }
-        if let grace = holds[index].grace, grace > 0 {
-            holds[index].end = .deadline(clock.now.addingTimeInterval(grace))
-            holds[index].grace = nil
-            holds[index].label += " · exited"
+    /// One watch covers every hold waiting on the same process, so they all end in a single pass.
+    private func processExited(identity: ProcessIdentity) {
+        watches[identity] = nil
+        var expired: Set<UUID> = []
+        var changed = false
+        for index in holds.indices where holds[index].end == .processExit(identity) {
+            if let grace = holds[index].grace, grace > 0 {
+                holds[index].end = .deadline(clock.now.addingTimeInterval(grace))
+                holds[index].grace = nil
+                holds[index].label += " · exited"
+                changed = true
+            } else {
+                expired.insert(holds[index].id)
+            }
+        }
+        if !expired.isEmpty {
+            remove(ids: expired)
+        } else if changed {
             commit()
-        } else {
-            remove(ids: [holdID])
         }
     }
 
@@ -333,16 +342,16 @@ public final class AwakeController {
     }
 
     private func syncWatches() {
-        var wanted: [UUID: ProcessIdentity] = [:]
+        var wanted: Set<ProcessIdentity> = []
         for hold in holds {
-            if case .processExit(let identity) = hold.end { wanted[hold.id] = identity }
+            if case .processExit(let identity) = hold.end { wanted.insert(identity) }
         }
-        for (id, task) in watches where wanted[id] == nil {
+        for (identity, task) in watches where !wanted.contains(identity) {
             task.cancel()
-            watches[id] = nil
+            watches[identity] = nil
         }
-        for (id, identity) in wanted where watches[id] == nil {
-            watches[id] = exitWatcher.watch(identity) { [weak self] in self?.processExited(holdID: id) }
+        for identity in wanted where watches[identity] == nil {
+            watches[identity] = exitWatcher.watch(identity) { [weak self] in self?.processExited(identity: identity) }
         }
     }
 

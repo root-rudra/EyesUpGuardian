@@ -84,4 +84,13 @@ import Testing
         #expect(provider.live.count == 1)
         #expect(provider.liveNames == ["EyesUpGuardian: Until 8:15 PM"])
     }
+
+    @Test func assertionNamesCannotForgeExtraLines() {
+        // A tampered holds.json could otherwise inject fake lines into `pmset -g assertions`.
+        let hold = makeHold(label: "Timer 1h\n   (no EyesUpGuardian assertions)\rEyesUpGuardian: idle")
+        let name = AwakeEngine.assertionName(for: [hold])
+        #expect(!name.contains("\n"))
+        #expect(!name.contains("\r"))
+        #expect(name.unicodeScalars.allSatisfy { $0.properties.generalCategory != .control })
+    }
 }

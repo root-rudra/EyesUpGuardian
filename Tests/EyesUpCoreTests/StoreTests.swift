@@ -108,4 +108,10 @@ import Testing
         #expect(HoldRestorer.sanitized(hold, now: referenceDate) == nil)
         #expect(HoldRestorer.sanitized(makeHold(end: .indefinite, createdAt: referenceDate.addingTimeInterval(30)), now: referenceDate) != nil)
     }
+
+    @Test func restoreCapsTheNumberOfHolds() {
+        let many = (0..<(HoldRestorer.maxHolds + 50)).map { makeHold(label: "Hold \($0)") }
+        let restored = HoldRestorer.restorable(many, now: referenceDate, inspector: FakeInspector())
+        #expect(restored.count == HoldRestorer.maxHolds)
+    }
 }
