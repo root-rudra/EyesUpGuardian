@@ -17,6 +17,8 @@ func makeHold(
 @MainActor
 final class FakePowerAssertions: PowerAssertionProviding {
     private(set) var live: [UInt32: (kind: AssertionKind, name: String)] = [:]
+    /// Ordered log of calls, so tests can prove coverage never lapses.
+    private(set) var events: [String] = []
     private(set) var createCount = 0
     private(set) var userActivityCount = 0
     var failingKinds: Set<AssertionKind> = []
@@ -28,14 +30,22 @@ final class FakePowerAssertions: PowerAssertionProviding {
     func create(_ kind: AssertionKind, name: String) throws -> UInt32 {
         if failingKinds.contains(kind) { throw PowerAssertionError(kind: kind, code: -536870201) }
         createCount += 1
+        events.append("create \(kind.rawValue) \(name)")
         let id = nextID
         nextID += 1
         live[id] = (kind, name)
         return id
     }
 
-    func rename(_ id: UInt32, to name: String) { live[id]?.name = name }
-    func release(_ id: UInt32) { live[id] = nil }
+    func rename(_ id: UInt32, to name: String) {
+        events.append("rename \(name)")
+        live[id]?.name = name
+    }
+
+    func release(_ id: UInt32) {
+        events.append("release \(live[id]?.kind.rawValue ?? "?")")
+        live[id] = nil
+    }
     func declareUserActivity(name: String) { userActivityCount += 1 }
 }
 

@@ -68,4 +68,20 @@ import Testing
         #expect(engine.lastError == nil)
         #expect(provider.liveKinds == [.preventIdleSystemSleep, .preventDisplaySleep])
     }
+
+    @Test func assertionNamesStayPrintable() {
+        // "Until 8:15 PM" as macOS formats it, with U+202F before PM.
+        let hold = makeHold(label: "Until 8:15\u{202F}PM")
+        let name = AwakeEngine.assertionName(for: [hold])
+        #expect(name == "EyesUpGuardian: Until 8:15 PM")
+        #expect(name.allSatisfy { $0.isASCII })
+    }
+
+    @Test func aNameChangeKeepsOneLiveAssertion() {
+        let engine = AwakeEngine(provider: provider)
+        engine.reconcile(holds: [makeHold(label: "Timer 2h")])
+        engine.reconcile(holds: [makeHold(label: "Until 8:15\u{202F}PM")])
+        #expect(provider.live.count == 1)
+        #expect(provider.liveNames == ["EyesUpGuardian: Until 8:15 PM"])
+    }
 }

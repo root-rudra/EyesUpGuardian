@@ -44,8 +44,16 @@ public final class AwakeEngine {
     public static func assertionName(for holds: [Hold]) -> String {
         let prefix = "EyesUpGuardian"
         guard !holds.isEmpty else { return prefix }
-        let full = prefix + ": " + holds.map(\.label).joined(separator: " · ")
+        let full = printable(prefix + ": " + holds.map(\.label).joined(separator: " · "))
         guard full.count > maxNameLength else { return full }
         return String(full.prefix(maxNameLength - 1)) + "…"
+    }
+
+    /// macOS formats times with a narrow no-break space (U+202F), and `pmset -g assertions` prints
+    /// an empty name when one is present. Exotic whitespace becomes a plain space so the audit trail stays readable.
+    static func printable(_ name: String) -> String {
+        String(name.map { character in
+            character.unicodeScalars.allSatisfy { $0.properties.isWhitespace && !$0.isASCII } ? " " : character
+        })
     }
 }
