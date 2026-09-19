@@ -88,22 +88,8 @@ struct DashboardView: View {
     }
 }
 
-// Replaced in Task 14.
-struct TriggersTab: View {
-    let environment: AppEnvironment
-    @Bindable var state: DashboardState
-    var body: some View { Text("Triggers").padding() }
-}
-
 // Replaced in Task 15.
 struct SettingsTab: View {
     let environment: AppEnvironment
     var body: some View { Text("Settings").padding() }
-}
-
-// Replaced in Task 14.
-@MainActor
-@Observable
-final class TriggerDraft: Identifiable {
-    let id = UUID()
 }

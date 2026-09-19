@@ -8,6 +8,9 @@ import Testing
         .deletingLastPathComponent() // Tests
         .deletingLastPathComponent() // package root
 
+    /// Rules that only make sense in code: user-facing copy may say "sudo", code may not call it.
+    static let codeOnlyPatterns: Set<String> = [#"\bsudo\b"#]
+
     static let forbidden: [(pattern: String, reason: String)] = [
         (#"\bProcess\s*\("#, "launching processes"),
         (#"\bNSTask\b"#, "launching processes"),
@@ -24,10 +27,17 @@ import Testing
         (#"\bsudo\b"#, "privilege escalation"),
     ]
 
+    /// Text with double-quoted string literals blanked out, so copy can't trip a code-only rule.
+    static func withoutStringLiterals(_ text: String) throws -> String {
+        text.replacing(try Regex(#""(?:[^"\\\n]|\\.)*""#), with: "\"\"")
+    }
+
     static func violations(in text: String) throws -> [String] {
-        try forbidden.compactMap { rule in
+        let code = try withoutStringLiterals(text)
+        return try forbidden.compactMap { rule in
             // Simple word boundaries: Unicode boundaries treat "URLSession.shared" as one word and would miss it.
-            try text.firstMatch(of: Regex(rule.pattern).wordBoundaryKind(.simple)) == nil ? nil : rule.reason
+            let haystack = codeOnlyPatterns.contains(rule.pattern) ? code : text
+            return try haystack.firstMatch(of: Regex(rule.pattern).wordBoundaryKind(.simple)) == nil ? nil : rule.reason
         }
     }
 
@@ -38,6 +48,9 @@ import Testing
         #expect(try Self.violations(in: ".font(.system(size: 34))").isEmpty)
         #expect(try Self.violations(in: "system(\"ls\")") == ["launching processes"])
         #expect(try Self.violations(in: "_ = Darwin.system(cmd)") == ["launching processes"])
+        // User-facing copy may mention sudo; only code may not.
+        #expect(try Self.violations(in: #"Text("commands run with sudo can\'t be matched")"#).isEmpty)
+        #expect(try Self.violations(in: "let helper = sudo").isEmpty == false)
     }
 
     @Test func sourcesContainNoForbiddenAPIs() throws {
