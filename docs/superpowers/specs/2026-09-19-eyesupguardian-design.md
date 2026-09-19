@@ -108,7 +108,7 @@ struct Hold: Identifiable, Codable {
 | Timer | `-t` | `HoldEnd.deadline` |
 | Until PID exits | `-w` | `HoldEnd.processExit` |
 
-- There is **at most one assertion per type**. Its name is updated to list the active reasons, for example `EyesUpGuardian: Timer 2h · Claude running`. This makes `pmset -g assertions` a readable audit trail.
+- There is **at most one assertion per type**. Its name is updated to list the active reasons (with exotic whitespace mapped to plain spaces, because `pmset` prints an empty name otherwise), for example `EyesUpGuardian: Timer 2h · Claude running`. This makes `pmset -g assertions` a readable audit trail.
 - **`caffeinate <utility>` (run a command) is intentionally not supported.** The user starts the command, then picks "watch this process".
 - **Default policy for new holds:** `.system` (display may sleep). The user can change this default in Settings, and each hold has a "Display on" toggle.
 
@@ -153,7 +153,7 @@ While its condition is true, the trigger owns exactly one hold, with `end = .tri
 | Trigger | Condition | Detection | Background cost |
 |---|---|---|---|
 | App running | Any of the chosen bundle IDs is running | `NSWorkspace` `didLaunch`/`didTerminate` notifications, plus an initial `runningApplications` scan. Matched by **bundle ID**, not name. | Event-driven, none |
-| Process running | A process with the chosen executable name(s) is running (for CLI tools: `claude`, `node`, `swift-build`) | `proc_listallpids` + name lookup every 10 s **only while enabled**. On a match, it switches to kqueue exit watching for that process. | Tiny |
+| Process running | A process with the chosen executable name(s) is running (for CLI tools: `claude`, `node`, `swift-build`) | `proc_listallpids` + name lookup every 10 s **only while enabled** (Plan 2 decision: polling only, no kqueue switch; the ≤10 s release delay sits inside the grace period). Only processes this user owns are visible to libproc, so `sudo`-run commands can't be matched. | Tiny |
 | Specific PID | Chosen via a manual hold; see §4.3 | kqueue | None |
 | Schedule | Weekday set + start/end time (may cross midnight) | One timer for the next boundary; re-evaluates on wake and on clock/timezone change notifications | None |
 | CPU busy | Total CPU > X% sustained for M min | Samples every 15 s; **hysteresis**: releases only after below X for 5 min (configurable) | Tiny |
@@ -173,6 +173,8 @@ While its condition is true, the trigger owns exactly one hold, with `end = .tri
   - `extend?by=<duration>`.
 - **Validation:** strict. Unknown commands or parameters are rejected. Durations must match `^(\d{1,3}h)?(\d{1,4}m)?$` or equal `inf`, and are capped at 24 h, or at the safety cap if one is set and lower.
 - **It can never** quit processes, change settings or create triggers.
+- **`stop` ends only the session a link started.** A link can never cancel a session you started by hand.
+- **Links carry no path.** Only `eyesup://<command>` is accepted.
 - **Visibility:** each accepted command posts a notification and is recorded in history with source `.automation`. It is enabled only through a Settings toggle.
 
 ## 6. Metrics
@@ -271,6 +273,8 @@ Transitions animate over 0.6 s only when the state changes.
 ### 7.3 Dashboard window
 
 A sidebar with five tabs (⌘1–⌘5):
+
+The window ships in stages: Triggers and Settings in Plan 2, Overview and Processes in Plan 3, History in Plan 4.
 
 1. **Overview (Ambient):**
    - a large glowing countdown and the active reasons;

@@ -34,3 +34,24 @@ Run before every release. Each check needs a fresh `make app` build.
 ## Performance
 - [ ] `make perf` passes.
 - [ ] Popover open: CPU under 1.5% in Activity Monitor (spec §3 dashboard-open target).
+
+
+## Triggers (Plan 2)
+- [ ] Suggestion card appears for a running known app and adds a working trigger.
+- [ ] App trigger: quitting and relaunching the app releases and re-takes the hold.
+- [ ] Process trigger: `sleep 120` in Terminal takes the hold within ~10 s and releases within ~10 s of ending.
+- [ ] Schedule trigger: activates and releases at the times set, including a window that crosses midnight.
+- [ ] CPU trigger: a heavy build takes the hold after the "busy for" time, and it clears after the quiet time.
+- [ ] Grace period keeps the Mac awake for the set minutes after the condition ends.
+- [ ] Editing a trigger's condition swaps its monitor; deleting it clears the hold.
+- [ ] Pause for 1 hour clears trigger holds; Resume re-takes them for conditions that are still true.
+- [ ] A trigger with notifications on posts a banner when it starts and stops.
+
+## Safety guards (Plan 2)
+- [ ] Setting "never stay awake longer than 1 hour" ends an indefinite session after an hour with a banner.
+- [ ] With the cap off, an indefinite session shows no end time again.
+
+## Automation link (Plan 2)
+- [ ] With links off, `open "eyesup://start?for=1h"` does nothing and explains why.
+- [ ] With links on: start, extend and stop all work, and `eyesup://quit` is refused.
+- [ ] `eyesup://stop` does not cancel a session started by hand.
