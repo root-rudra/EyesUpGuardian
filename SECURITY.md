@@ -32,6 +32,11 @@ The first command should print nothing. The second should list only Apple framew
 | kqueue process source | Instant notice that a watched process exited. |
 | `NSWorkspace` running applications and launch/quit notifications | The "while an app is open" trigger. |
 | `UserNotifications` | The heads-up before your Mac may sleep, and trigger notices. |
+| AppleSMC user client (`IOConnectCallStructMethod`) | Power draw, fan speed and temperature. Read-only: the app only ever reads keys, never writes them. |
+| `IOAccelerator` registry statistics | GPU utilization. |
+| `host_processor_info`, `host_statistics64` | CPU and memory. |
+| `proc_pid_rusage`, `proc_pidinfo` | The process table's CPU and memory columns. |
+| `kill(2)` | Quit / Force Quit, for your own processes only, after re-checking the process identity. |
 
 None of these needs admin rights. You can see what the app is holding at any time:
 

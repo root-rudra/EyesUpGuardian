@@ -9,24 +9,34 @@ struct HUDView: View {
     @Bindable var stats: StatsViewModel
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-            HStack(spacing: 10) {
-                Image(systemName: controller.isAwake ? "eye.fill" : "eye")
-                    .foregroundStyle(controller.isAwake ? .orange : .secondary)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(countdown(now: context.date))
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                    Text(statLine).font(.system(size: 10)).foregroundStyle(.secondary).monospacedDigit()
-                }
+        // A per-second tick only earns its keep while a countdown is running: with no deadline the
+        // HUD's text changes at most once a minute, and this panel is always on screen.
+        Group {
+            if controller.awakeUntil != nil {
+                TimelineView(.periodic(from: .now, by: 1)) { context in panel(now: context.date) }
+            } else {
+                TimelineView(.everyMinute) { context in panel(now: context.date) }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
         }
         .background(AmbientBackground(mood: controller.isAwake ? .awake : .idle))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .onAppear { stats.start() }
         .onDisappear { stats.stop() }
+    }
+
+    private func panel(now: Date) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: controller.isAwake ? "eye.fill" : "eye")
+                .foregroundStyle(controller.isAwake ? .orange : .secondary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(countdown(now: now))
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                Text(statLine).font(.system(size: 10)).foregroundStyle(.secondary).monospacedDigit()
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
     }
 
     private func countdown(now: Date) -> String {

@@ -19,6 +19,18 @@ Triggers keep your Mac awake by themselves. Open the dashboard (right-click the 
 
 Each trigger can keep the display on too, stay awake for a grace period after its condition ends, and notify you when it starts and stops. Pause them all from the Triggers tab.
 
+## What your Mac is doing
+
+The dashboard's **Overview** shows CPU (with performance and efficiency core averages), memory and pressure, power draw in watts, temperature, fan speed, GPU use, disk, network, uptime, load and thermal state — plus **which other apps are keeping your Mac awake**, which is usually the answer to "why won't it sleep?".
+
+**Processes** lists what's running, sorted by CPU or memory, with a filter. Right-click any row to keep your Mac awake until that process exits, copy its PID, reveal it in Finder, or quit it (your own processes only, with a confirmation).
+
+You can also put live stats in the menu bar next to the timer, and pin a small floating **HUD** that stays visible over other apps.
+
+Everything is measured only while you're looking at it: close the dashboard and the popover, and the app goes back to measuring nothing.
+
+**What needs no admin rights, and what isn't available:** power draw, fan speed and temperature come from the Mac's own sensors and work without a password. The per-chip power split (CPU vs GPU vs Neural Engine) is *not* included, because reading it needs a private interface this app deliberately avoids; the total is shown instead. Any reading your Mac doesn't provide shows as "—" rather than a made-up number.
+
 **Safety guards** (Settings): never stay awake longer than a chosen number of hours, and let the Mac sleep if it gets too hot.
 
 **Automation link** (off by default): once enabled, scripts can run `open "eyesup://start?for=2h"`, `eyesup://extend?by=30m` and `eyesup://stop`. Links can only touch their own session, never longer than 24 hours.

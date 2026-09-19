@@ -55,3 +55,21 @@ Run before every release. Each check needs a fresh `make app` build.
 - [ ] With links off, `open "eyesup://start?for=1h"` does nothing and explains why.
 - [ ] With links on: start, extend and stop all work, and `eyesup://quit` is refused.
 - [ ] `eyesup://stop` does not cancel a session started by hand.
+
+
+## Stats and dashboard (Plan 3)
+- [ ] Popover shows four tiles (CPU, Memory, Power, Uptime) updating about once a second.
+- [ ] Closing the popover stops the updates (Activity Monitor: CPU back to ~0%).
+- [ ] Overview: countdown, three sparklines filling over ~10 s, twelve tiles with real values.
+- [ ] Power and fan tiles show numbers on this Mac (Mac Studio). On hardware without them, they read "—".
+- [ ] Other apps holding the Mac awake are listed, in the popover and in Overview.
+- [ ] Processes: sorted by CPU, filter works, sort switches, right-click offers Copy PID / Reveal / Keep awake until this exits.
+- [ ] Quit is offered only for your own processes, asks for confirmation, and reports the outcome.
+- [ ] Quitting a process that already ended says so instead of signalling anything.
+- [ ] Menu-bar readout options each show what they promise; "Icon only" and "Icon and time left" measure nothing.
+- [ ] HUD pins, drags, survives a relaunch in the same place, floats over full-screen apps, and stops sampling when unpinned.
+- [ ] `make perf` passes in the default configuration (measured 0.000% CPU, 16 MB).
+- [ ] Measured cost of the visible extras (all well under the 1.5% budget for a visible surface, and
+      about 0.03% of this 32-core Mac): HUD pinned with nothing counting down 0.30%; HUD pinned while a
+      timer runs ~1.1%; menu-bar stat readout ~0.4%.
+- [ ] Dashboard open: CPU under 1.5% in Activity Monitor.
