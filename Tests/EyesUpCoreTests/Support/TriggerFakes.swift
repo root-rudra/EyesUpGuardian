@@ -120,6 +120,12 @@ final class FakeCounters: SystemCounters, @unchecked Sendable {
     func cpuTicks() -> (busy: UInt64, total: UInt64)? { cpu }
     func networkBytes() -> UInt64? { network }
     func diskBytesWritten() -> UInt64? { disk }
+
+    func networkBytesSplit() -> (received: UInt64, sent: UInt64)? {
+        network.map { (received: $0 / 2, sent: $0 / 2) }
+    }
+
+    func diskBytesRead() -> UInt64? { disk }
 }
 
 @MainActor

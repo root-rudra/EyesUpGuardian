@@ -24,11 +24,19 @@ public protocol ProcessLister: Sendable {
     func runningProcessNames() -> Set<String>
 }
 
-/// Raw counters behind the activity triggers.
+/// Raw counters behind the activity triggers and the stats probes.
 public protocol SystemCounters: Sendable {
     func cpuTicks() -> (busy: UInt64, total: UInt64)?
     func networkBytes() -> UInt64?
     func diskBytesWritten() -> UInt64?
+    /// Bytes received and sent separately; nil when the interface list can't be read.
+    func networkBytesSplit() -> (received: UInt64, sent: UInt64)?
+    func diskBytesRead() -> UInt64?
+}
+
+extension SystemCounters {
+    public func networkBytesSplit() -> (received: UInt64, sent: UInt64)? { nil }
+    public func diskBytesRead() -> UInt64? { nil }
 }
 
 public enum ThermalLevel: Int, Sendable, Comparable, CaseIterable {

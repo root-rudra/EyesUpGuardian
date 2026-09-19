@@ -47,15 +47,21 @@ public struct LiveSystemCounters: SystemCounters {
         return (busy: user + system + nice, total: user + system + idle + nice)
     }
 
-    /// Bytes in + out across every non-loopback interface, from the 64-bit interface list.
     public func networkBytes() -> UInt64? {
+        guard let split = networkBytesSplit() else { return nil }
+        return split.received + split.sent
+    }
+
+    /// Bytes in and out across every non-loopback interface, from the 64-bit interface list.
+    public func networkBytesSplit() -> (received: UInt64, sent: UInt64)? {
         var mib: [Int32] = [CTL_NET, PF_ROUTE, 0, 0, NET_RT_IFLIST2, 0]
         var length = 0
         guard sysctl(&mib, 6, nil, &length, nil, 0) == 0, length > 0 else { return nil }
         var buffer = [UInt8](repeating: 0, count: length)
         guard sysctl(&mib, 6, &buffer, &length, nil, 0) == 0 else { return nil }
 
-        var total: UInt64 = 0
+        var received: UInt64 = 0
+        var sent: UInt64 = 0
         var offset = 0
         buffer.withUnsafeBytes { raw in
             while offset + MemoryLayout<if_msghdr>.size <= length {
@@ -64,31 +70,37 @@ public struct LiveSystemCounters: SystemCounters {
                 if Int32(header.ifm_type) == RTM_IFINFO2, offset + MemoryLayout<if_msghdr2>.size <= length {
                     let extended = raw.loadUnaligned(fromByteOffset: offset, as: if_msghdr2.self)
                     if extended.ifm_data.ifi_type != UInt8(IFT_LOOP) {
-                        total += extended.ifm_data.ifi_ibytes + extended.ifm_data.ifi_obytes
+                        received += extended.ifm_data.ifi_ibytes
+                        sent += extended.ifm_data.ifi_obytes
                     }
                 }
                 offset += Int(header.ifm_msglen)
             }
         }
-        return total
+        return (received, sent)
     }
 
-    public func diskBytesWritten() -> UInt64? {
+    public func diskBytesWritten() -> UInt64? { blockStorageBytes()?.written }
+
+    public func diskBytesRead() -> UInt64? { blockStorageBytes()?.read }
+
+    private func blockStorageBytes() -> (read: UInt64, written: UInt64)? {
         var iterator: io_iterator_t = 0
         guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOBlockStorageDriver"), &iterator) == KERN_SUCCESS else {
             return nil
         }
         defer { IOObjectRelease(iterator) }
 
-        var total: UInt64 = 0
+        var read: UInt64 = 0
+        var written: UInt64 = 0
         while case let service = IOIteratorNext(iterator), service != 0 {
             defer { IOObjectRelease(service) }
             guard let statistics = IORegistryEntryCreateCFProperty(service, "Statistics" as CFString, kCFAllocatorDefault, 0)?
-                .takeRetainedValue() as? [String: Any],
-                let written = statistics["Bytes (Write)"] as? NSNumber else { continue }
-            total += written.uint64Value
+                .takeRetainedValue() as? [String: Any] else { continue }
+            if let value = statistics["Bytes (Read)"] as? NSNumber { read += value.uint64Value }
+            if let value = statistics["Bytes (Write)"] as? NSNumber { written += value.uint64Value }
         }
-        return total
+        return (read, written)
     }
 }
 

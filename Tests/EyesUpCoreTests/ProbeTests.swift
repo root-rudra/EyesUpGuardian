@@ -36,4 +36,44 @@ import Testing
         #expect(metrics.idleSeconds >= 0)
         #expect(ThermalLevel.allCases.contains(metrics.thermal))
     }
+
+    @Test func storageProbeReportsSpaceImmediatelyAndRatesAfterTwoSamples() {
+        let probe = StorageProbe()
+        let first = probe.sample()
+        #expect(first?.totalBytes ?? 0 > 0)
+        #expect((first?.freeBytes ?? 0) <= (first?.totalBytes ?? 0))
+        #expect(first?.readBytesPerSecond == nil) // no interval yet
+
+        let second = probe.sample()
+        #expect((second?.readBytesPerSecond ?? 0) >= 0)
+        #expect((second?.writeBytesPerSecond ?? 0) >= 0)
+    }
+
+    @Test func networkProbeReportsRatesAfterTwoSamples() {
+        let probe = NetworkProbe()
+        #expect(probe.sample()?.inBytesPerSecond == nil)
+        let second = probe.sample()
+        #expect((second?.inBytesPerSecond ?? 0) >= 0)
+        #expect((second?.outBytesPerSecond ?? 0) >= 0)
+    }
+
+    @Test func ratesResetAfterWake() {
+        // The Mac slept for an hour: counters jumped, but that isn't a rate.
+        let counters = FakeCounters()
+        let clock = FakeClock()
+        counters.network = 1000
+        counters.disk = 1000
+        let network = NetworkProbe(counters: counters, clock: clock)
+        let storage = StorageProbe(counters: counters, clock: clock)
+        _ = network.sample()
+        _ = storage.sample()
+
+        counters.network = 50_000_000_000
+        counters.disk = 50_000_000_000
+        clock.advance(3600)
+        network.resetBaseline()
+        storage.resetBaseline()
+        #expect(network.sample()?.inBytesPerSecond == nil)
+        #expect(storage.sample()?.readBytesPerSecond == nil)
+    }
 }
