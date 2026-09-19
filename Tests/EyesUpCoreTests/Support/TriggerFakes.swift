@@ -51,3 +51,91 @@ final class FakeMonitorFactory: ConditionMonitorFactory {
 
     var last: FakeConditionMonitor? { made.last }
 }
+
+@MainActor
+final class FakeWorkspace: WorkspaceEvents {
+    var running: Set<String> = []
+    private var handler: (@MainActor () -> Void)?
+
+    func runningBundleIDs() -> Set<String> { running }
+
+    func observeChanges(_ handler: @escaping @MainActor () -> Void) -> any ScheduledTask {
+        self.handler = handler
+        return FakeTask { [weak self] in self?.handler = nil }
+    }
+
+    /// Test hook: pretend an app launched or quit.
+    func change(to running: Set<String>) {
+        self.running = running
+        handler?()
+    }
+}
+
+@MainActor
+final class FakeDisplays: DisplayInventory {
+    var connected: [DisplayMatch] = []
+    private var handler: (@MainActor () -> Void)?
+
+    func connectedDisplays() -> [DisplayMatch] { connected }
+
+    func observeChanges(_ handler: @escaping @MainActor () -> Void) -> any ScheduledTask {
+        self.handler = handler
+        return FakeTask { [weak self] in self?.handler = nil }
+    }
+
+    func change(to connected: [DisplayMatch]) {
+        self.connected = connected
+        handler?()
+    }
+}
+
+@MainActor
+final class FakePowerSource: PowerSourceInfo {
+    var onAC = true
+    private var handler: (@MainActor () -> Void)?
+
+    func isOnACPower() -> Bool { onAC }
+
+    func observeChanges(_ handler: @escaping @MainActor () -> Void) -> any ScheduledTask {
+        self.handler = handler
+        return FakeTask { [weak self] in self?.handler = nil }
+    }
+
+    func change(to onAC: Bool) {
+        self.onAC = onAC
+        handler?()
+    }
+}
+
+final class FakeProcessLister: ProcessLister, @unchecked Sendable {
+    var names: Set<String> = []
+    func runningProcessNames() -> Set<String> { names }
+}
+
+final class FakeCounters: SystemCounters, @unchecked Sendable {
+    var cpu: (busy: UInt64, total: UInt64)?
+    var network: UInt64?
+    var disk: UInt64?
+
+    func cpuTicks() -> (busy: UInt64, total: UInt64)? { cpu }
+    func networkBytes() -> UInt64? { network }
+    func diskBytesWritten() -> UInt64? { disk }
+}
+
+@MainActor
+final class FakeThermal: ThermalMonitoring {
+    var level: ThermalLevel = .nominal
+    private var handler: (@MainActor () -> Void)?
+
+    func currentLevel() -> ThermalLevel { level }
+
+    func observeChanges(_ handler: @escaping @MainActor () -> Void) -> any ScheduledTask {
+        self.handler = handler
+        return FakeTask { [weak self] in self?.handler = nil }
+    }
+
+    func change(to level: ThermalLevel) {
+        self.level = level
+        handler?()
+    }
+}
