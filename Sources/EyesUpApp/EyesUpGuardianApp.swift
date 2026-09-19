@@ -9,14 +9,17 @@ struct EyesUpGuardianApp: App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var statusItem: NSStatusItem?
+    private var environment: AppEnvironment?
+    private var statusItem: StatusItemController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.image = NSImage(systemSymbolName: "eye", accessibilityDescription: "EyesUpGuardian")
-        let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Quit EyesUpGuardian", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        item.menu = menu
-        statusItem = item
+        let environment = AppEnvironment()
+        environment.start()
+        statusItem = StatusItemController(controller: environment.controller)
+        self.environment = environment
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        environment?.shutdown()
     }
 }
