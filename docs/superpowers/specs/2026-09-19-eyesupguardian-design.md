@@ -12,7 +12,7 @@ The app succeeds when:
 
 1. Every `caffeinate` capability is available from a clickable UI. It also offers automatic triggers that `caffeinate` lacks (app running, process running, schedule, activity-based).
 2. It never executes shell commands, never needs admin rights, and never touches the network.
-3. At idle it uses **< 0.1% CPU (averaged over 60 s) and ≤ 30 MB resident memory**, verified by `make perf`.
+3. At idle it uses **< 0.1% CPU (averaged over 60 s) and ≤ 30 MB memory footprint** (`phys_footprint`, the figure Activity Monitor's Memory column shows), verified by `make perf`.
 4. A crash can never leave the Mac stuck awake, and valid keep-awake sessions survive a relaunch.
 5. It shows useful live system stats (CPU, memory, power, temperatures, processes, and more) without admin rights.
 6. A stranger can clone the repo, run one command, and get a working app.
@@ -68,7 +68,7 @@ EyesUpGuardian/
 3. **No per-second background tick.** Timers wake only at their deadlines. Live countdowns are drawn only while a window is visible (SwiftUI `TimelineView`).
 4. **Bounded memory.** Chart histories are fixed-size ring buffers (300 samples per stat). History on disk is capped (§8).
 5. **Single process.** No helpers, daemons, XPC services or child processes.
-6. **Targets:** idle CPU < 0.1% (60 s average), idle RSS ≤ 30 MB, and dashboard-open CPU < 1.5%. `make perf` enforces the idle targets. The dashboard-open target is checked in the manual checklist.
+6. **Targets:** idle CPU < 0.1% (60 s average), idle memory footprint ≤ 30 MB (`phys_footprint`; RSS is not used because it counts shared system frameworks, about 75 MB even for an empty SwiftUI app), and dashboard-open CPU < 1.5%. `make perf` enforces the idle targets. The dashboard-open target is checked in the manual checklist.
 7. **Crash safety.** Power assertions belong to the process, so the kernel releases them if the app dies. Persisted holds are restored on launch (§4.4).
 8. **Graceful degradation.** Any probe that fails or is unavailable reports `.unavailable`. The UI hides that stat with a "Not available on this Mac" note, and nothing crashes.
 
@@ -85,12 +85,14 @@ struct Hold: Identifiable, Codable {
     var label: String             // "Timer 2h", "Claude running", "PID 48213 swift-build"
     var policy: SleepPolicy       // OptionSet: .system, .display, .disk, .systemOnAC
     var end: HoldEnd              // .indefinite, .deadline(Date), .processExit(ProcessIdentity), .triggerControlled
-    var grace: Duration?          // keep holding this long after the end condition
+    var grace: TimeInterval?      // keep holding this long after the end condition
     var createdAt: Date
 }
 ```
 
-`HoldRegistry` owns the active holds. It is the only place holds are added or removed.
+`AwakeController` owns the active holds (the hold registry). It is the only place holds are added or removed.
+
+**Manual sessions:** a manual timer, until-time or indefinite hold is a "manual session". Starting a new one replaces the previous one. Process holds and trigger holds are never replaced. "+30m" extends every non-trigger deadline hold, or starts a timer if there is none.
 
 ### 4.2 Engine reconciliation
 
@@ -128,6 +130,8 @@ Active holds are written to `holds.json` on every change, and restored on launch
 | Process hold | Restored only if `ProcessIdentity` still matches |
 | Indefinite manual hold | Restored |
 | Trigger-controlled hold | Not persisted; the trigger re-evaluates on launch |
+
+**A deliberate Quit** stops all holds and saves an empty list. Only a crash or forced kill leaves holds to restore on the next launch.
 
 ### 4.5 Safety guards (Settings, both opt-in)
 
@@ -220,7 +224,7 @@ While its condition is true, the trigger owns exactly one hold, with `end = .tri
 | Temperatures | IOHID temperature sensor services, falling back to SMC temperature keys |
 | Fan RPM | SMC `F0Ac`, `F1Ac`, … |
 
-**Feasibility gate:** implementation task 1 is a throwaway spike that prints each private probe's output on the target Mac Studio. Probes that fail there ship disabled (hidden) and are listed in the README as "not available".
+**Feasibility gate:** the first task of the metrics implementation plan (Plan 3) is a throwaway spike that prints each private probe's output on the target Mac Studio. Probes that fail there ship disabled (hidden) and are listed in the README as "not available".
 
 ### 6.3 Energy cost
 
@@ -364,7 +368,7 @@ All files live in `~/Library/Application Support/EyesUpGuardian/`, are JSON, and
   - The sampler: subscribe/unsubscribe lifecycle, zero subscribers means no timer, and ring buffer bounds.
   - Security scans: forbidden symbols, and no package dependencies.
 - **Integration tests** (tagged, run by `make test-integration`): take a real assertion, verify it appears in `IOPMCopyAssertionsByProcess` with the expected name, release it, and verify it's gone. Watch a real short-lived child test process for exit. (The *test* may spawn a process; the app never does.)
-- **Performance:** `make perf` launches the built app, waits 30 s, samples its CPU and RSS for 60 s via `proc_pid_rusage`, and fails if above the §3 targets.
+- **Performance:** `make perf` launches the built app, waits 30 s, measures CPU time consumed over 60 s (from `ps`) and the memory footprint (from `footprint`), and fails if above the §3 targets.
 - **Manual checklist** (`docs/manual-test-checklist.md`):
   - every UI surface;
   - Reduce Motion and Reduce Transparency;
