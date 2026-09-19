@@ -237,4 +237,120 @@ import Testing
         guard case .loaded(let saved) = store.load() else { Issue.record("expected saved file"); return }
         #expect(saved.isEmpty)
     }
+
+    // MARK: Trigger holds
+
+    @Test func triggerHoldIsNotAManualSessionAndHasNoEnd() {
+        let controller = makeController()
+        let triggerID = UUID()
+        controller.beginTriggerHold(triggerID: triggerID, label: "Claude running", policy: .system)
+        #expect(controller.isAwake)
+        #expect(controller.awakeUntil == nil)
+        #expect(provider.liveNames == ["EyesUpGuardian: Claude running"])
+
+        _ = try? controller.startTimer(duration: 3600, policy: .system)
+        #expect(controller.holds.count == 2)
+        #expect(controller.hasTriggerHold(triggerID: triggerID))
+    }
+
+    @Test func beginningTheSameTriggerTwiceKeepsOneHold() {
+        let controller = makeController()
+        let triggerID = UUID()
+        controller.beginTriggerHold(triggerID: triggerID, label: "A", policy: .system)
+        controller.beginTriggerHold(triggerID: triggerID, label: "B", policy: [.system, .display])
+        #expect(controller.holds.count == 1)
+        #expect(controller.holds.first?.label == "B")
+        #expect(provider.liveKinds == [.preventIdleSystemSleep, .preventDisplaySleep])
+    }
+
+    @Test func endingATriggerHoldRespectsGrace() {
+        let controller = makeController()
+        let triggerID = UUID()
+        controller.beginTriggerHold(triggerID: triggerID, label: "Build", policy: .system)
+        controller.endTriggerHold(triggerID: triggerID, grace: 300)
+        #expect(controller.awakeUntil == referenceDate.addingTimeInterval(300))
+
+        clock.advance(300)
+        scheduler.runDue(at: clock.now)
+        #expect(controller.holds.isEmpty)
+        #expect(provider.live.isEmpty)
+    }
+
+    @Test func conditionReturningDuringGraceCancelsTheCountdown() {
+        let controller = makeController()
+        let triggerID = UUID()
+        controller.beginTriggerHold(triggerID: triggerID, label: "Build", policy: .system)
+        controller.endTriggerHold(triggerID: triggerID, grace: 300)
+        controller.beginTriggerHold(triggerID: triggerID, label: "Build", policy: .system)
+        #expect(controller.holds.count == 1)
+        #expect(controller.awakeUntil == nil)
+
+        clock.advance(600)
+        scheduler.runDue(at: clock.now)
+        #expect(controller.isAwake)
+    }
+
+    @Test func stopAllLeavesTriggerHoldsButRemoveTriggerHoldsClearsThem() {
+        let controller = makeController()
+        let triggerID = UUID()
+        controller.beginTriggerHold(triggerID: triggerID, label: "Claude running", policy: .system)
+        _ = try? controller.startTimer(duration: 3600, policy: .system)
+
+        controller.stopAll()
+        #expect(controller.holds.map(\.label) == ["Claude running"])
+
+        controller.removeTriggerHolds()
+        #expect(controller.holds.isEmpty)
+        #expect(provider.live.isEmpty)
+    }
+
+    // MARK: Safety cap and emergency release
+
+    @Test func safetyCapEndsAnIndefiniteHoldAndReportsIt() {
+        let controller = makeController()
+        var released: [String] = []
+        controller.onSafetyRelease = { released = $0 }
+        controller.setSafetyCap(3600)
+        controller.startIndefinite(policy: .system)
+        #expect(controller.awakeUntil == referenceDate.addingTimeInterval(3600))
+
+        clock.advance(3600)
+        scheduler.runDue(at: clock.now)
+        #expect(controller.holds.isEmpty)
+        #expect(released == ["Indefinitely"])
+        #expect(provider.live.isEmpty)
+    }
+
+    @Test func normalExpiryIsNotReportedAsASafetyRelease() throws {
+        let controller = makeController()
+        var released: [String] = []
+        controller.onSafetyRelease = { released = $0 }
+        controller.setSafetyCap(3600)
+        try controller.startTimer(duration: 1800, policy: .system)
+
+        clock.advance(1800)
+        scheduler.runDue(at: clock.now)
+        #expect(controller.holds.isEmpty)
+        #expect(released.isEmpty)
+    }
+
+    @Test func clearingTheSafetyCapRestoresNoEndTime() {
+        let controller = makeController()
+        controller.setSafetyCap(3600)
+        controller.startIndefinite(policy: .system)
+        controller.setSafetyCap(nil)
+        #expect(controller.awakeUntil == nil)
+        clock.advance(7200)
+        scheduler.runDue(at: clock.now)
+        #expect(controller.isAwake)
+    }
+
+    @Test func releaseAllForSafetyDropsEverythingIncludingTriggers() {
+        let controller = makeController()
+        controller.beginTriggerHold(triggerID: UUID(), label: "Claude running", policy: .system)
+        controller.startIndefinite(policy: .system)
+        controller.releaseAllForSafety()
+        #expect(controller.holds.isEmpty)
+        #expect(provider.live.isEmpty)
+    }
 }

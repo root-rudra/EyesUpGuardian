@@ -30,7 +30,11 @@ public final class AwakeController {
     public private(set) var storeNotice: String?
 
     public var isAwake: Bool { !holds.isEmpty }
-    public var awakeUntil: Date? { Hold.awakeUntil(holds) }
+    public var awakeUntil: Date? { Hold.awakeUntil(holds, safetyCap: safetyCap) }
+    /// Spec §4.5 safety cap, in seconds; nil means no cap.
+    public private(set) var safetyCap: TimeInterval?
+    /// Labels of holds the safety cap ended, for the notification.
+    @ObservationIgnored public var onSafetyRelease: (([String]) -> Void)?
     public var sessionStart: Date? { holds.map(\.createdAt).min() }
     public var displayOn: Bool { holds.contains { !$0.source.isTrigger && $0.policy.contains(.display) } }
     /// The policy "+30m" and notification actions should use for new holds.
@@ -64,7 +68,7 @@ public final class AwakeController {
         self.ownPID = ownPID
         engine = AwakeEngine(provider: provider)
         deadlines = DeadlineMonitor(clock: clock, scheduler: scheduler, headsUpLead: headsUpLead)
-        deadlines.onExpired = { [weak self] ids in self?.remove(ids: Set(ids)) }
+        deadlines.onExpired = { [weak self] ids in self?.expire(ids: Set(ids)) }
     }
 
     // MARK: Starting
@@ -148,6 +152,58 @@ public final class AwakeController {
         provider.declareUserActivity(name: "EyesUpGuardian: nudge display")
     }
 
+    // MARK: Trigger holds
+
+    /// Takes (or refreshes) the hold a trigger owns. Trigger holds have no end of their own.
+    @discardableResult
+    public func beginTriggerHold(triggerID: UUID, label: String, policy: SleepPolicy) -> Hold {
+        if let index = holds.firstIndex(where: { $0.source == .trigger(triggerID) }) {
+            holds[index].end = .triggerControlled // cancels any grace countdown
+            holds[index].label = label
+            holds[index].policy = policy
+            commit()
+            return holds[index]
+        }
+        let hold = Hold(source: .trigger(triggerID), label: label, policy: policy,
+                        end: .triggerControlled, createdAt: clock.now)
+        holds.append(hold)
+        commit()
+        return hold
+    }
+
+    /// The trigger's condition ended: drop the hold now, or after its grace period.
+    public func endTriggerHold(triggerID: UUID, grace: TimeInterval) {
+        guard let index = holds.firstIndex(where: { $0.source == .trigger(triggerID) }) else { return }
+        guard grace > 0 else {
+            remove(ids: [holds[index].id])
+            return
+        }
+        holds[index].end = .deadline(clock.now.addingTimeInterval(grace))
+        commit()
+    }
+
+    public func removeTriggerHolds() {
+        remove(ids: Set(holds.filter(\.source.isTrigger).map(\.id)))
+    }
+
+    public func hasTriggerHold(triggerID: UUID) -> Bool {
+        holds.contains { $0.source == .trigger(triggerID) }
+    }
+
+    // MARK: Safety
+
+    public func setSafetyCap(_ cap: TimeInterval?) {
+        safetyCap = cap.flatMap { $0.isFinite && $0 > 0 ? $0 : nil }
+        deadlines.safetyCap = safetyCap
+        commit()
+    }
+
+    /// Thermal emergency (spec §4.5): drop every hold, whatever its source.
+    public func releaseAllForSafety() {
+        holds.removeAll()
+        commit()
+    }
+
     // MARK: Lifecycle
 
     public func restore() {
@@ -209,6 +265,14 @@ public final class AwakeController {
         } else {
             remove(ids: [holdID])
         }
+    }
+
+    /// Holds whose own end has not arrived were ended by the safety cap, so the user is told.
+    private func expire(ids: Set<UUID>) {
+        let now = clock.now
+        let capped = holds.filter { ids.contains($0.id) && ($0.effectiveDeadline ?? .distantFuture) > now }
+        remove(ids: ids)
+        if !capped.isEmpty { onSafetyRelease?(capped.map(\.label)) }
     }
 
     private func commit() {

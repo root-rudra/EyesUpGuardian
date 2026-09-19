@@ -74,13 +74,24 @@ public struct Hold: Identifiable, Codable, Hashable, Sendable {
         }
     }
 
-    /// When the Mac may sleep again, or nil if there are no holds or any hold has no deadline.
-    public static func awakeUntil(_ holds: [Hold]) -> Date? {
+    /// When this hold ends, counting its grace and any safety cap (spec §4.5).
+    public func expiry(safetyCap: TimeInterval?) -> Date? {
+        let capped = safetyCap.map { createdAt.addingTimeInterval($0) }
+        switch (effectiveDeadline, capped) {
+        case (let deadline?, let cap?): return min(deadline, cap)
+        case (let deadline?, nil): return deadline
+        case (nil, let cap?): return cap
+        case (nil, nil): return nil
+        }
+    }
+
+    /// When the Mac may sleep again, or nil if there are no holds or any hold has no end.
+    public static func awakeUntil(_ holds: [Hold], safetyCap: TimeInterval? = nil) -> Date? {
         guard !holds.isEmpty else { return nil }
         var latest = Date.distantPast
         for hold in holds {
-            guard let deadline = hold.effectiveDeadline else { return nil }
-            latest = max(latest, deadline)
+            guard let end = hold.expiry(safetyCap: safetyCap) else { return nil }
+            latest = max(latest, end)
         }
         return latest
     }

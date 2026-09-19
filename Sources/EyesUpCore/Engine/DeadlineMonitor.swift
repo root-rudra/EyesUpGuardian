@@ -4,6 +4,8 @@ import Foundation
 @MainActor
 public final class DeadlineMonitor {
     public var headsUpLead: TimeInterval
+    /// Spec §4.5: no hold may run longer than this, whatever its own end says.
+    public var safetyCap: TimeInterval?
     public var onExpired: (([UUID]) -> Void)?
     public var onHeadsUp: ((Date) -> Void)?
 
@@ -28,17 +30,17 @@ public final class DeadlineMonitor {
         headsUpTask = nil
 
         let now = clock.now
-        let expired = holds.filter { ($0.effectiveDeadline ?? .distantFuture) <= now }.map(\.id)
+        let expired = holds.filter { ($0.expiry(safetyCap: safetyCap) ?? .distantFuture) <= now }.map(\.id)
         if !expired.isEmpty {
             onExpired?(expired)
             return
         }
 
-        if let next = holds.compactMap(\.effectiveDeadline).min() {
+        if let next = holds.compactMap({ $0.expiry(safetyCap: safetyCap) }).min() {
             expiryTask = scheduler.schedule(at: next) { [weak self] in self?.recheck() }
         }
 
-        guard let end = Hold.awakeUntil(holds), end != announcedEnd else { return }
+        guard let end = Hold.awakeUntil(holds, safetyCap: safetyCap), end != announcedEnd else { return }
         let fireAt = end.addingTimeInterval(-headsUpLead)
         guard fireAt > now else { return }
         headsUpTask = scheduler.schedule(at: fireAt) { [weak self] in
