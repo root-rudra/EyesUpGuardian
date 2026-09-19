@@ -157,3 +157,24 @@ final class FakeSMC: SMCReading, @unchecked Sendable {
         return values[key]
     }
 }
+
+final class FakeSignaller: ProcessSignalling, @unchecked Sendable {
+    private(set) var sent: [(Int32, Int32)] = []
+
+    func send(_ signal: Int32, to pid: Int32) -> Bool {
+        sent.append((signal, pid))
+        return true
+    }
+}
+
+extension FakeInspector {
+    func ownerUID(of pid: Int32) -> uid_t? { owners[pid] }
+
+    func details(of pid: Int32) -> ProcessDetails? {
+        guard var detail = details[pid] else { return nil }
+        detail.cpuSeconds = cpuSecondsByPID[pid] ?? 0
+        return detail
+    }
+
+    func allProcessIDs() -> [Int32] { allPIDs }
+}

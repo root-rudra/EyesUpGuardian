@@ -96,6 +96,10 @@ final class FakeScheduler: TimerScheduling {
 final class FakeInspector: ProcessInspecting, @unchecked Sendable {
     var identities: [Int32: ProcessIdentity] = [:]
     var names: [Int32: String] = [:]
+    var owners: [Int32: uid_t] = [:]
+    var details: [Int32: ProcessDetails] = [:]
+    var cpuSecondsByPID: [Int32: Double] = [:]
+    var allPIDs: [Int32] = []
     func identity(of pid: Int32) -> ProcessIdentity? { identities[pid] }
     func name(of pid: Int32) -> String? { names[pid] }
 }
