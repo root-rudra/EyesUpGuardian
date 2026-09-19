@@ -43,6 +43,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.environment = environment
     }
 
+    /// Spec §5.1. Every link is parsed strictly, and does nothing unless the user switched links on.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let environment else { return }
+        guard environment.automationEnabled else {
+            headsUp?.postInfo(AutomationError.disabled.message, id: "automation")
+            return
+        }
+        for url in urls.prefix(5) {
+            do {
+                let command = try AutomationParser.parse(url, cap: environment.controller.safetyCap)
+                headsUp?.postInfo(try environment.controller.apply(command), id: "automation")
+            } catch let error as AutomationError {
+                headsUp?.postInfo(error.message, id: "automation")
+            } catch let error as AwakeError {
+                headsUp?.postInfo(error.message, id: "automation")
+            } catch {
+                headsUp?.postInfo("That automation link couldn't be used.", id: "automation")
+            }
+        }
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         environment?.shutdown()
     }

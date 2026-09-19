@@ -87,9 +87,3 @@ struct DashboardView: View {
         .frame(minWidth: 700, minHeight: 460)
     }
 }
-
-// Replaced in Task 15.
-struct SettingsTab: View {
-    let environment: AppEnvironment
-    var body: some View { Text("Settings").padding() }
-}

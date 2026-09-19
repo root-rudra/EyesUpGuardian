@@ -13,5 +13,16 @@
     <key>LSMinimumSystemVersion</key><string>26.0</string>
     <key>LSUIElement</key><true/>
     <key>NSHumanReadableCopyright</key><string>MIT License</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>dev.eyesupguardian.EyesUpGuardian.automation</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>eyesup</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>
