@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import EyesUpCore
 
-@Suite(.integration) @MainActor struct IOKitIntegrationTests {
+@Suite(.integration, .serialized) @MainActor struct IOKitIntegrationTests {
     private func ownAssertionNames() -> [String] {
         SystemAssertions.forProcess(getpid()).map(\.name)
     }
