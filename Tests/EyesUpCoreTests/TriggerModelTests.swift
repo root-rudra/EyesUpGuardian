@@ -69,4 +69,12 @@ import Testing
         #expect(suggestions.first?.displayName == "Claude")
         #expect(TriggerSuggestions.suggestions(running: [], existing: []).isEmpty)
     }
+
+    @Test func activityTimingsGetAFloorSoTriggersCannotFlap() throws {
+        let trigger = makeTrigger(condition: .cpuBusy(ActivityThreshold(value: 50, sustain: 0, release: 0)))
+        let clean = try #require(TriggerValidator.sanitized(trigger))
+        guard case .cpuBusy(let threshold) = clean.condition else { Issue.record("wrong condition"); return }
+        #expect(threshold.sustain == TriggerValidator.minActivityTiming)
+        #expect(threshold.release == TriggerValidator.minActivityTiming)
+    }
 }

@@ -25,6 +25,12 @@ import Testing
         (#"\bsocket\s*\("#, "network access"),
         (#"AuthorizationExecuteWithPrivileges|AuthorizationCreate|SMJobBless"#, "privilege escalation"),
         (#"\bsudo\b"#, "privilege escalation"),
+        (#"\bProcess\.(launchedProcess|launchedTaskWithLaunchPath)"#, "launching processes"),
+        (#"\b(v?fork|execvP|posix_spawnp)\s*\("#, "launching processes"),
+        (#"NSWorkspace[^\n]{0,40}\.(open|openApplication|launchApplication|openURLs)\s*\("#, "launching other apps"),
+        (#"\bdl(open|sym)\s*\("#, "loading code at runtime"),
+        (#"\b(getaddrinfo|CFSocket|NSURLConnection|NWPathMonitor)\b"#, "network access"),
+        (#"\b(set[er]?uid|setgid|SMAppService)\b"#, "privilege escalation"),
     ]
 
     /// Text with double-quoted string literals blanked out, so copy can't trip a code-only rule.
@@ -51,6 +57,15 @@ import Testing
         // User-facing copy may mention sudo; only code may not.
         #expect(try Self.violations(in: #"Text("commands run with sudo can\'t be matched")"#).isEmpty)
         #expect(try Self.violations(in: "let helper = sudo").isEmpty == false)
+        // Spellings the first version of this guard missed.
+        #expect(try Self.violations(in: "Process.launchedProcess(launchPath: p, arguments: [])") == ["launching processes"])
+        #expect(try Self.violations(in: "let pid = fork()") == ["launching processes"])
+        #expect(try Self.violations(in: "NSWorkspace.shared.launchApplication(app)") == ["launching other apps"])
+        #expect(try Self.violations(in: "NSWorkspace.shared.open(url)") == ["launching other apps"])
+        #expect(try Self.violations(in: "let handle = dlopen(path, RTLD_NOW)") == ["loading code at runtime"])
+        #expect(try Self.violations(in: "getaddrinfo(host, nil, &hints, &result)") == ["network access"])
+        #expect(try Self.violations(in: "seteuid(0)") == ["privilege escalation"])
+        #expect(try Self.violations(in: "SMAppService.daemon(plistName: p)") == ["privilege escalation"])
     }
 
     @Test func sourcesContainNoForbiddenAPIs() throws {

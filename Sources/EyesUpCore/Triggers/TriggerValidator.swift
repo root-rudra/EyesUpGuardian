@@ -7,6 +7,10 @@ public enum TriggerValidator {
     public static let maxIdentifiers = 32
     public static let maxGrace: TimeInterval = 24 * 3600
     public static let maxSustain: TimeInterval = 24 * 3600
+    /// More triggers than anyone needs; a tampered file could otherwise start thousands of monitors.
+    public static let maxTriggers = 64
+    /// Shortest "busy for"/"quiet for" an activity trigger may use, so it can't flap every sample.
+    public static let minActivityTiming: TimeInterval = 30
     /// Below this, a network or disk threshold would fire on background noise.
     public static let minByteRate: Double = 1024
 
@@ -30,14 +34,28 @@ public enum TriggerValidator {
                   schedule.startMinute != schedule.endMinute else { return nil }
         case .cpuBusy(let threshold):
             guard threshold.value >= 1, threshold.value <= 100, timings(threshold) else { return nil }
-        case .networkBusy(let threshold), .diskBusy(let threshold):
+            clean.condition = .cpuBusy(floored(threshold))
+        case .networkBusy(let threshold):
             guard threshold.value.isFinite, threshold.value >= minByteRate, timings(threshold) else { return nil }
+            clean.condition = .networkBusy(floored(threshold))
+        case .diskBusy(let threshold):
+            guard threshold.value.isFinite, threshold.value >= minByteRate, timings(threshold) else { return nil }
+            clean.condition = .diskBusy(floored(threshold))
         case .displayConnected(let display):
             guard display.vendor != 0 || display.model != 0 || display.serial != 0 else { return nil }
         case .onACPower:
             break
         }
         return clean
+    }
+
+    /// Keeps the anti-flap delays meaningful even if a saved file asks for zero.
+    private static func floored(_ threshold: ActivityThreshold) -> ActivityThreshold {
+        ActivityThreshold(
+            value: threshold.value,
+            sustain: max(threshold.sustain, minActivityTiming),
+            release: max(threshold.release, minActivityTiming)
+        )
     }
 
     private static func timings(_ threshold: ActivityThreshold) -> Bool {

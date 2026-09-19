@@ -101,4 +101,11 @@ import Testing
         let restored = HoldRestorer.restorable([hold], now: referenceDate, inspector: FakeInspector())
         #expect(restored.first?.policy == .system)
     }
+
+    @Test func restoreDropsHoldsCreatedInTheFuture() {
+        // A far-future createdAt would push `createdAt + safetyCap` out of reach, so the cap never bites.
+        let hold = makeHold(end: .indefinite, createdAt: referenceDate.addingTimeInterval(7 * 86_400))
+        #expect(HoldRestorer.sanitized(hold, now: referenceDate) == nil)
+        #expect(HoldRestorer.sanitized(makeHold(end: .indefinite, createdAt: referenceDate.addingTimeInterval(30)), now: referenceDate) != nil)
+    }
 }

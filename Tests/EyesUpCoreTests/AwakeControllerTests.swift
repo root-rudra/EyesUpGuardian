@@ -389,6 +389,21 @@ import Testing
         #expect(fresh.holds.first?.source == .automation)
     }
 
+    @Test func automationExtendCannotCompoundPastItsCap() throws {
+        let controller = makeController()
+        _ = try controller.apply(.start(duration: .finite(7200), display: false))
+        for _ in 0..<5 { _ = try controller.apply(.extend(by: 24 * 3600)) }
+        #expect(controller.awakeUntil == referenceDate.addingTimeInterval(AutomationParser.maxDuration))
+    }
+
+    @Test func automationRespectsALowerSafetyCap() throws {
+        let controller = makeController()
+        controller.setSafetyCap(3600)
+        _ = try controller.apply(.start(duration: .finite(1800), display: false))
+        _ = try controller.apply(.extend(by: 24 * 3600))
+        #expect(controller.awakeUntil == referenceDate.addingTimeInterval(3600))
+    }
+
     @Test func automationRejectsAbsurdDurations() {
         let controller = makeController()
         #expect(throws: AwakeError.invalidDuration) { try controller.apply(.extend(by: 0)) }

@@ -61,7 +61,7 @@ public struct LiveSystemCounters: SystemCounters {
             while offset + MemoryLayout<if_msghdr>.size <= length {
                 let header = raw.loadUnaligned(fromByteOffset: offset, as: if_msghdr.self)
                 guard header.ifm_msglen > 0 else { break }
-                if Int32(header.ifm_type) == RTM_IFINFO2 {
+                if Int32(header.ifm_type) == RTM_IFINFO2, offset + MemoryLayout<if_msghdr2>.size <= length {
                     let extended = raw.loadUnaligned(fromByteOffset: offset, as: if_msghdr2.self)
                     if extended.ifm_data.ifi_type != UInt8(IFT_LOOP) {
                         total += extended.ifm_data.ifi_ibytes + extended.ifm_data.ifi_obytes
@@ -116,9 +116,13 @@ public struct LiveProcessLister: ProcessLister {
 
 @MainActor
 public final class LiveDisplayInventory: DisplayInventory {
-    private var box: CallbackBox?
+    /// One entry per registration. Each keeps its own callback box alive for as long as CoreGraphics
+    /// holds a pointer to it; sharing a single slot would free a box the callback still dereferences.
+    private var observations: [UUID: CallbackBox] = [:]
 
     public init() {}
+
+    public var activeObservationCount: Int { observations.count }
 
     public func connectedDisplays() -> [DisplayMatch] {
         var ids = [CGDirectDisplayID](repeating: 0, count: 16)
@@ -135,38 +139,42 @@ public final class LiveDisplayInventory: DisplayInventory {
     }
 
     public func observeChanges(_ handler: @escaping @MainActor () -> Void) -> any ScheduledTask {
+        let token = UUID()
         let box = CallbackBox(handler)
-        self.box = box
+        observations[token] = box
         CGDisplayRegisterReconfigurationCallback(displayCallback, Unmanaged.passUnretained(box).toOpaque())
         return CallbackObservation { [weak self] in
             CGDisplayRemoveReconfigurationCallback(displayCallback, Unmanaged.passUnretained(box).toOpaque())
-            self?.box = nil
+            self?.observations[token] = nil
         }
     }
 }
 
 @MainActor
 public final class LivePowerSourceInfo: PowerSourceInfo {
-    private var box: CallbackBox?
-    private var source: CFRunLoopSource?
+    /// One box and run-loop source per registration, for the same reason as LiveDisplayInventory.
+    private var observations: [UUID: (box: CallbackBox, source: CFRunLoopSource)] = [:]
 
     public init() {}
+
+    public var activeObservationCount: Int { observations.count }
 
     public func isOnACPower() -> Bool {
         (IOPSGetProvidingPowerSourceType(nil)?.takeUnretainedValue() as String?) == kIOPMACPowerKey
     }
 
     public func observeChanges(_ handler: @escaping @MainActor () -> Void) -> any ScheduledTask {
+        let token = UUID()
         let box = CallbackBox(handler)
-        self.box = box
-        let source = IOPSNotificationCreateRunLoopSource(powerCallback, Unmanaged.passUnretained(box).toOpaque())?
-            .takeRetainedValue()
-        self.source = source
-        if let source { CFRunLoopAddSource(CFRunLoopGetMain(), source, .defaultMode) }
+        guard let source = IOPSNotificationCreateRunLoopSource(powerCallback, Unmanaged.passUnretained(box).toOpaque())?
+            .takeRetainedValue() else {
+            return CallbackObservation {}
+        }
+        observations[token] = (box, source)
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .defaultMode)
         return CallbackObservation { [weak self] in
-            if let source = self?.source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .defaultMode) }
-            self?.source = nil
-            self?.box = nil
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .defaultMode)
+            self?.observations[token] = nil
         }
     }
 }

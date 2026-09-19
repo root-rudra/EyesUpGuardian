@@ -10,7 +10,10 @@ import Testing
     @Test func acceptsTheThreeCommands() throws {
         #expect(try parse("eyesup://start?for=2h") == .start(duration: .finite(7200), display: false))
         #expect(try parse("eyesup://start?for=90m&display=true") == .start(duration: .finite(5400), display: true))
-        #expect(try parse("eyesup://start?for=inf") == .start(duration: .infinite, display: false))
+        // "inf" means "as long as a link may ask for", never unbounded (C1).
+        #expect(try parse("eyesup://start?for=inf") == .start(duration: .finite(AutomationParser.maxDuration), display: false))
+        #expect(try parse("eyesup://start?for=inf", cap: 3600) == .start(duration: .finite(3600), display: false))
+        #expect(try parse("eyesup://start?for=INF", cap: 7200) == .start(duration: .finite(7200), display: false))
         #expect(try parse("eyesup://stop") == .stop)
         #expect(try parse("eyesup://extend?by=30m") == .extend(by: 1800))
         #expect(try parse("EYESUP://START?for=1h") == .start(duration: .finite(3600), display: false))

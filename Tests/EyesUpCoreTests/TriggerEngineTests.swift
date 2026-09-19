@@ -224,4 +224,21 @@ import Testing
         engine.shutdown()
         #expect(factory.last?.isStarted == false)
     }
+
+    @Test func loadCapsTheNumberOfTriggers() throws {
+        let store = tempStore()
+        try store.save((0..<(TriggerValidator.maxTriggers + 20)).map { makeTrigger(name: "Trigger \($0)") })
+        let engine = makeEngine(controller: makeController(), store: store)
+        engine.load()
+        #expect(engine.triggers.count == TriggerValidator.maxTriggers)
+        #expect(engine.storeNotice != nil)
+        #expect(factory.made.count == TriggerValidator.maxTriggers)
+    }
+
+    @Test func addRefusesToGoOverTheLimit() throws {
+        let engine = makeEngine(controller: makeController())
+        for index in 0..<TriggerValidator.maxTriggers { try engine.add(makeTrigger(name: "Trigger \(index)")) }
+        #expect(throws: TriggerError.invalid) { try engine.add(makeTrigger(name: "One too many")) }
+        #expect(engine.triggers.count == TriggerValidator.maxTriggers)
+    }
 }

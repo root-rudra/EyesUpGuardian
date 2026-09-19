@@ -7,6 +7,8 @@ public enum HoldRestorer {
     public static let maxGrace: TimeInterval = 24 * 3600
     /// Longest label a saved hold may carry.
     public static let maxLabelLength = 200
+    /// A saved hold may be stamped slightly in the future (clock changes), but not meaningfully so.
+    public static let maxClockSkew: TimeInterval = 300
     public static let knownPolicy: SleepPolicy = [.system, .display, .disk, .systemOnAC]
 
     /// The hold with unknown policy bits removed, or nil if it breaks a creation limit.
@@ -18,6 +20,8 @@ public enum HoldRestorer {
         var hold = saved
         hold.policy = hold.policy.intersection(knownPolicy)
         guard !hold.policy.isEmpty, hold.label.count <= maxLabelLength else { return nil }
+        // A createdAt in the future would push `createdAt + safetyCap` out of reach, so the cap would never bite.
+        guard hold.createdAt.timeIntervalSince(now) <= maxClockSkew else { return nil }
         if let grace = hold.grace, !(0...maxGrace).contains(grace) { return nil }
         if let deadline = hold.effectiveDeadline, deadline.timeIntervalSince(now) > maxDuration + maxGrace { return nil }
         return hold

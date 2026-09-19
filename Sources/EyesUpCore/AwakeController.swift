@@ -221,9 +221,12 @@ public final class AwakeController {
         case .extend(let seconds):
             guard seconds > 0, seconds <= Self.maxManualDuration else { throw AwakeError.invalidDuration }
             var extended = false
+            // A link may never push its own session past the link cap, or past the safety cap if that is lower.
+            let limit = min(AutomationParser.maxDuration, safetyCap ?? .greatestFiniteMagnitude)
             for index in holds.indices where holds[index].source == .automation {
                 guard case .deadline(let date) = holds[index].end else { continue }
-                let newDate = date.addingTimeInterval(seconds)
+                let ceiling = holds[index].createdAt.addingTimeInterval(limit)
+                let newDate = min(date.addingTimeInterval(seconds), ceiling)
                 holds[index].end = .deadline(newDate)
                 holds[index].label = "Automation until " + newDate.formatted(date: .omitted, time: .shortened)
                 extended = true

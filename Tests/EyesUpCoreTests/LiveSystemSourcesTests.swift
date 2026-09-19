@@ -37,4 +37,28 @@ import Testing
         #expect(!LiveDisplayInventory().connectedDisplays().isEmpty)
         #expect(LivePowerSourceInfo().isOnACPower()) // Mac Studio is always on AC
     }
+
+    @Test @MainActor func severalObserversCoexistAndCancelIndependently() {
+        // Two "on AC power" triggers share one LivePowerSourceInfo. Each registration must keep its own
+        // callback box alive: freeing one while IOKit still points at it is a use-after-free.
+        let power = LivePowerSourceInfo()
+        let first = power.observeChanges {}
+        let second = power.observeChanges {}
+        #expect(power.activeObservationCount == 2)
+        first.cancel()
+        #expect(power.activeObservationCount == 1)
+        second.cancel()
+        #expect(power.activeObservationCount == 0)
+    }
+
+    @Test @MainActor func severalDisplayObserversCoexistAndCancelIndependently() {
+        let displays = LiveDisplayInventory()
+        let first = displays.observeChanges {}
+        let second = displays.observeChanges {}
+        #expect(displays.activeObservationCount == 2)
+        first.cancel()
+        #expect(displays.activeObservationCount == 1)
+        second.cancel()
+        #expect(displays.activeObservationCount == 0)
+    }
 }

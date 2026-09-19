@@ -36,8 +36,11 @@ public enum AutomationParser {
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             throw AutomationError.badScheme
         }
-        // Only eyesup://<command> is accepted: no path, so nothing path-shaped can be smuggled in.
-        guard components.path.isEmpty || components.path == "/" else { throw AutomationError.badScheme }
+        // Only eyesup://<command> is accepted: no path, credentials, port or fragment, so nothing
+        // extra can be smuggled into a link that a person might eyeball before running it.
+        guard components.path.isEmpty || components.path == "/",
+              components.user == nil, components.password == nil,
+              components.port == nil, components.fragment == nil else { throw AutomationError.badScheme }
         let command = (components.host ?? "").lowercased()
         let items = components.queryItems ?? []
         guard items.count <= maxQueryItems else { throw AutomationError.badParameter }
@@ -54,14 +57,14 @@ public enum AutomationParser {
         case "start":
             try allow(keys: ["for", "display"], in: values)
             guard let raw = values["for"], !raw.isEmpty else { throw AutomationError.missingParameter }
-            return .start(duration: try duration(raw, limit: limit), display: try flag(values["display"]))
+            return .start(duration: try duration(raw, limit: limit, allowInfinite: true), display: try flag(values["display"]))
         case "stop":
             try allow(keys: [], in: values)
             return .stop
         case "extend":
             try allow(keys: ["by"], in: values)
             guard let raw = values["by"], !raw.isEmpty else { throw AutomationError.missingParameter }
-            guard case .finite(let seconds) = try duration(raw, limit: limit) else { throw AutomationError.badParameter }
+            guard case .finite(let seconds) = try duration(raw, limit: limit, allowInfinite: false) else { throw AutomationError.badParameter }
             return .extend(by: seconds)
         default:
             throw AutomationError.unknownCommand
@@ -72,11 +75,19 @@ public enum AutomationParser {
         guard Set(values.keys).isSubset(of: keys) else { throw AutomationError.badParameter }
     }
 
-    private static func duration(_ raw: String, limit: TimeInterval) throws -> ParsedDuration {
+    /// A link may never ask for more than `limit`. "inf" means "as long as a link may ask for",
+    /// not "forever": an unbounded hold from a link would escape both the 24 h cap and the safety cap.
+    private static func duration(_ raw: String, limit: TimeInterval, allowInfinite: Bool) throws -> ParsedDuration {
         guard raw.count <= 9, !raw.contains(where: \.isWhitespace),
               let parsed = DurationParser.parse(raw) else { throw AutomationError.badParameter }
-        if case .finite(let seconds) = parsed, seconds > limit { throw AutomationError.badParameter }
-        return parsed
+        switch parsed {
+        case .infinite:
+            guard allowInfinite else { throw AutomationError.badParameter }
+            return .finite(limit)
+        case .finite(let seconds):
+            guard seconds <= limit else { throw AutomationError.badParameter }
+            return .finite(seconds)
+        }
     }
 
     private static func flag(_ raw: String?) throws -> Bool {

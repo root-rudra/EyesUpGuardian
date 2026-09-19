@@ -17,19 +17,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let environment = AppEnvironment()
-        environment.start()
         let notifier = HeadsUpNotifier(controller: environment.controller)
         headsUp = notifier
+
+        // Wired before start(): restoring holds, loading settings and the first thermal check can all
+        // release a session, and those notices would otherwise be lost.
         environment.engine.onNotify = { [weak notifier] message in
             notifier?.postInfo(message, id: "trigger-\(UUID().uuidString)")
         }
         environment.controller.onSafetyRelease = { [weak notifier] labels in
             notifier?.postInfo("Safety limit reached, so keep-awake stopped: \(labels.joined(separator: ", ")).",
-                               id: "safety-cap")
+                               id: "safety-cap-\(UUID().uuidString)")
         }
         environment.safety.onThermalRelease = { [weak notifier] in
             notifier?.postInfo("Your Mac got too hot, so EyesUpGuardian let it sleep.", id: "thermal")
         }
+
+        environment.start()
+
+        // A pause restored from settings is otherwise invisible outside the dashboard.
+        if environment.engine.isPaused {
+            notifier.postInfo("Triggers are paused. Resume them in the dashboard's Triggers tab.", id: "paused")
+        }
+
         let dashboard = DashboardWindowController(environment: environment)
         let statusItem = StatusItemController(controller: environment.controller)
         statusItem.onOpenDashboard = { dashboard.show() }
@@ -53,7 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for url in urls.prefix(5) {
             do {
                 let command = try AutomationParser.parse(url, cap: environment.controller.safetyCap)
-                headsUp?.postInfo(try environment.controller.apply(command), id: "automation")
+                headsUp?.postInfo(try environment.controller.apply(command), id: "automation-\(UUID().uuidString)")
             } catch let error as AutomationError {
                 headsUp?.postInfo(error.message, id: "automation")
             } catch let error as AwakeError {

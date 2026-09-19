@@ -60,10 +60,10 @@ public final class TriggerEngine {
                 break
             case .loaded(let saved):
                 let valid = saved.compactMap(TriggerValidator.sanitized)
-                if valid.count < saved.count {
-                    storeNotice = "Some saved triggers were invalid and were discarded."
+                triggers = Array(valid.prefix(TriggerValidator.maxTriggers))
+                if triggers.count < saved.count {
+                    storeNotice = "Some saved triggers were invalid or beyond the limit, and were discarded."
                 }
-                triggers = valid
             case .corrupt:
                 storeNotice = "Saved triggers couldn't be read, so they were reset."
             }
@@ -88,7 +88,8 @@ public final class TriggerEngine {
     // MARK: Editing
 
     public func add(_ trigger: Trigger) throws {
-        guard let clean = TriggerValidator.sanitized(trigger) else { throw TriggerError.invalid }
+        guard triggers.count < TriggerValidator.maxTriggers,
+              let clean = TriggerValidator.sanitized(trigger) else { throw TriggerError.invalid }
         triggers.append(clean)
         startMonitor(for: clean)
         persist()
