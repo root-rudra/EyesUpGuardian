@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var environment: AppEnvironment?
     private var statusItem: StatusItemController?
     private var dashboard: DashboardWindowController?
+    private var hud: HUDWindowController?
     private var headsUp: HeadsUpNotifier?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -41,17 +42,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let dashboard = DashboardWindowController(environment: environment)
+        let hud = HUDWindowController(environment: environment)
         let statusItem = StatusItemController(controller: environment.controller)
         statusItem.onOpenDashboard = { dashboard.show() }
+        statusItem.onToggleHUD = { hud.toggle() }
         statusItem.setPopoverContent { PopoverView(
             controller: environment.controller,
             onOpenDashboard: { dashboard.show() },
             form: PopoverFormState(),
             stats: StatsViewModel(center: environment.metrics,
                                   ids: [.cpu, .memory, .power, .temperature, .system, .otherAssertions],
-                                  interval: 1)
+                                  interval: 1),
+            onHUDToggle: PopoverView.HUDToggle(isPinned: { hud.isVisible }, toggle: { hud.toggle() })
         ) }
         statusItem.applyReadout(environment.settings.settings.menuBarReadout, center: environment.metrics)
+        self.hud = hud
+        if environment.settings.settings.hudVisible { hud.show() }
         environment.onSettingsChanged = { [weak statusItem] settings in
             statusItem?.applyReadout(settings.menuBarReadout, center: environment.metrics)
         }
@@ -82,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        hud?.savePosition()
         environment?.shutdown()
     }
 }

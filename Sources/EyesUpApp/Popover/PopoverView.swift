@@ -10,6 +10,13 @@ struct PopoverView: View {
     /// whose macro plugin ships only with full Xcode, not the Command Line Tools.
     @Bindable var form: PopoverFormState
     let stats: StatsViewModel
+    /// Lets the popover pin the HUD without knowing about windows.
+    struct HUDToggle {
+        var isPinned: () -> Bool
+        var toggle: () -> Void
+    }
+
+    let onHUDToggle: HUDToggle
 
     private var mood: AmbientBackground.Mood { controller.isAwake ? .awake : .idle }
     private var newPolicy: SleepPolicy { form.displayForNew || controller.displayOn ? [.system, .display] : .system }
@@ -252,6 +259,8 @@ struct PopoverView: View {
         HStack {
             Text("EyesUpGuardian").font(.caption2).foregroundStyle(.tertiary)
             Spacer()
+            Button(onHUDToggle.isPinned() ? "Unpin HUD" : "Pin HUD") { onHUDToggle.toggle() }
+                .buttonStyle(.plain).font(.caption).foregroundStyle(.secondary)
             Button("Dashboard ↗") { onOpenDashboard() }
                 .buttonStyle(.plain).font(.caption).foregroundStyle(.secondary)
             Button("Quit") { NSApp.terminate(nil) }

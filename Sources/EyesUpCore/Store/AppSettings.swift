@@ -26,6 +26,17 @@ public enum MenuBarReadout: String, Codable, CaseIterable, Sendable {
     }
 }
 
+/// Where the floating HUD sits, in screen coordinates.
+public struct HUDPosition: Codable, Equatable, Sendable {
+    public var x: Double
+    public var y: Double
+
+    public init(x: Double, y: Double) {
+        self.x = x
+        self.y = y
+    }
+}
+
 /// User settings (spec §8). Decoding tolerates missing keys so later versions can add fields
 /// without a schema bump, and out-of-range values fall back to their defaults.
 public struct AppSettings: Codable, Equatable, Sendable {
@@ -39,19 +50,25 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var automationEnabled: Bool
     public var triggerPause: TriggerPause
     public var menuBarReadout: MenuBarReadout
+    public var hudVisible: Bool
+    public var hudPosition: HUDPosition?
 
     public init(
         safetyCapHours: Double? = nil,
         thermalAutoRelease: Bool = true,
         automationEnabled: Bool = false,
         triggerPause: TriggerPause = .none,
-        menuBarReadout: MenuBarReadout = .timer
+        menuBarReadout: MenuBarReadout = .timer,
+        hudVisible: Bool = false,
+        hudPosition: HUDPosition? = nil
     ) {
         self.safetyCapHours = safetyCapHours
         self.thermalAutoRelease = thermalAutoRelease
         self.automationEnabled = automationEnabled
         self.triggerPause = triggerPause
         self.menuBarReadout = menuBarReadout
+        self.hudVisible = hudVisible
+        self.hudPosition = hudPosition
     }
 
     public init(from decoder: any Decoder) throws {
@@ -62,6 +79,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         triggerPause = try container.decodeIfPresent(TriggerPause.self, forKey: .triggerPause) ?? .none
         // An unknown value from a hand-edited file falls back rather than failing the whole load.
         menuBarReadout = (try? container.decodeIfPresent(MenuBarReadout.self, forKey: .menuBarReadout)) ?? .timer
+        hudVisible = try container.decodeIfPresent(Bool.self, forKey: .hudVisible) ?? false
+        hudPosition = try container.decodeIfPresent(HUDPosition.self, forKey: .hudPosition)
     }
 
     public func validated(now: Date = Date()) -> AppSettings {
@@ -73,6 +92,11 @@ public struct AppSettings: Codable, Equatable, Sendable {
         if case .until(let date) = settings.triggerPause,
            date.timeIntervalSince(now) > Self.maxPauseDays * 86_400 {
             settings.triggerPause = .none
+        }
+        if let position = settings.hudPosition {
+            let sane = position.x.isFinite && position.y.isFinite
+                && abs(position.x) < 100_000 && abs(position.y) < 100_000
+            settings.hudPosition = sane ? position : nil
         }
         return settings
     }

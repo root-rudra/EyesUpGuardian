@@ -83,4 +83,11 @@ import Testing
         let settings = try JSONDecoder().decode(AppSettings.self, from: data)
         #expect(settings.menuBarReadout == .timer)
     }
+    @Test func hudDefaultsToHiddenAndRejectsAbsurdPositions() {
+        #expect(!AppSettings().hudVisible)
+        #expect(AppSettings().hudPosition == nil)
+        #expect(AppSettings(hudPosition: HUDPosition(x: .nan, y: 10)).validated().hudPosition == nil)
+        #expect(AppSettings(hudPosition: HUDPosition(x: 1e9, y: 1e9)).validated().hudPosition == nil)
+        #expect(AppSettings(hudPosition: HUDPosition(x: 120, y: 340)).validated().hudPosition == HUDPosition(x: 120, y: 340))
+    }
 }
