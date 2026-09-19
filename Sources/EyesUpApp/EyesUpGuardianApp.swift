@@ -15,7 +15,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let environment = AppEnvironment()
         environment.start()
-        statusItem = StatusItemController(controller: environment.controller)
+        let statusItem = StatusItemController(controller: environment.controller)
+        statusItem.setPopoverContent(PopoverView(controller: environment.controller, form: PopoverFormState()))
+        self.statusItem = statusItem
         self.environment = environment
     }
 
