@@ -1,6 +1,31 @@
 import Foundation
 import Observation
 
+/// What the menu-bar item shows beside its ring (spec §7.1).
+public enum MenuBarReadout: String, Codable, CaseIterable, Sendable {
+    case iconOnly, timer, timerAndCPU, timerAndPower, timerCPUAndPower
+
+    public var title: String {
+        switch self {
+        case .iconOnly: "Icon only"
+        case .timer: "Icon and time left"
+        case .timerAndCPU: "Icon, time and CPU"
+        case .timerAndPower: "Icon, time and power"
+        case .timerCPUAndPower: "Icon, time, CPU and power"
+        }
+    }
+
+    /// Nothing is sampled for the first two, so the menu bar costs nothing at rest.
+    public var metricIDs: Set<MetricID> {
+        switch self {
+        case .iconOnly, .timer: []
+        case .timerAndCPU: [.cpu]
+        case .timerAndPower: [.power]
+        case .timerCPUAndPower: [.cpu, .power]
+        }
+    }
+}
+
 /// User settings (spec §8). Decoding tolerates missing keys so later versions can add fields
 /// without a schema bump, and out-of-range values fall back to their defaults.
 public struct AppSettings: Codable, Equatable, Sendable {
@@ -13,17 +38,20 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var thermalAutoRelease: Bool
     public var automationEnabled: Bool
     public var triggerPause: TriggerPause
+    public var menuBarReadout: MenuBarReadout
 
     public init(
         safetyCapHours: Double? = nil,
         thermalAutoRelease: Bool = true,
         automationEnabled: Bool = false,
-        triggerPause: TriggerPause = .none
+        triggerPause: TriggerPause = .none,
+        menuBarReadout: MenuBarReadout = .timer
     ) {
         self.safetyCapHours = safetyCapHours
         self.thermalAutoRelease = thermalAutoRelease
         self.automationEnabled = automationEnabled
         self.triggerPause = triggerPause
+        self.menuBarReadout = menuBarReadout
     }
 
     public init(from decoder: any Decoder) throws {
@@ -32,6 +60,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         thermalAutoRelease = try container.decodeIfPresent(Bool.self, forKey: .thermalAutoRelease) ?? true
         automationEnabled = try container.decodeIfPresent(Bool.self, forKey: .automationEnabled) ?? false
         triggerPause = try container.decodeIfPresent(TriggerPause.self, forKey: .triggerPause) ?? .none
+        // An unknown value from a hand-edited file falls back rather than failing the whole load.
+        menuBarReadout = (try? container.decodeIfPresent(MenuBarReadout.self, forKey: .menuBarReadout)) ?? .timer
     }
 
     public func validated(now: Date = Date()) -> AppSettings {

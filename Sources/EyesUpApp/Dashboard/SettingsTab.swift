@@ -15,6 +15,19 @@ struct SettingsTab: View {
                 Text("Settings").font(.title2.bold())
 
                 Form {
+                    Section("Menu bar") {
+                        Picker("Show", selection: Binding(
+                            get: { settings.menuBarReadout },
+                            set: { readout in environment.settings.update { $0.menuBarReadout = readout } }
+                        )) {
+                            ForEach(MenuBarReadout.allCases, id: \.self) { readout in
+                                Text(readout.title).tag(readout)
+                            }
+                        }
+                        Text("Stats in the menu bar refresh every 2 seconds. With \"Icon only\" or \"Icon and time left\", nothing is measured at all.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+
                     Section("Safety") {
                         Picker("Never stay awake longer than", selection: Binding(
                             get: { settings.safetyCapHours },

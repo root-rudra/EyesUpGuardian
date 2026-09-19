@@ -66,4 +66,21 @@ import Testing
         #expect(controller.settings == AppSettings())
         #expect(controller.storeNotice != nil)
     }
+    @Test func readoutDefaultsToTheTimerAndSamplesNothing() {
+        #expect(AppSettings().menuBarReadout == .timer)
+        #expect(MenuBarReadout.timer.metricIDs.isEmpty)
+        #expect(MenuBarReadout.iconOnly.metricIDs.isEmpty)
+    }
+
+    @Test func readoutsNameTheMetricsTheyNeed() {
+        #expect(MenuBarReadout.timerAndCPU.metricIDs == [.cpu])
+        #expect(MenuBarReadout.timerAndPower.metricIDs == [.power])
+        #expect(MenuBarReadout.timerCPUAndPower.metricIDs == [.cpu, .power])
+    }
+
+    @Test func anUnknownSavedReadoutFallsBackToTheTimer() throws {
+        let data = Data(#"{"menuBarReadout":"holographic"}"#.utf8)
+        let settings = try JSONDecoder().decode(AppSettings.self, from: data)
+        #expect(settings.menuBarReadout == .timer)
+    }
 }

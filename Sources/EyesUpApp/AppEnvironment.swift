@@ -17,6 +17,9 @@ final class AppEnvironment {
     let metrics: MetricsCenter
     let workspace: LiveWorkspaceEvents
 
+    /// Set by the app delegate: UI that must react to a settings change.
+    var onSettingsChanged: ((AppSettings) -> Void)?
+
     private var observers: [NSObjectProtocol] = []
 
     init() {
@@ -51,6 +54,7 @@ final class AppEnvironment {
         settings.onChange = { [weak self] settings in
             guard let self else { return }
             SettingsApplier.apply(settings, controller: controller, engine: engine, safety: safety)
+            onSettingsChanged?(settings)
         }
         controller.restore()
         engine.load()      // triggers first, so settings can pause them

@@ -39,6 +39,16 @@ import Testing
         #expect(model.tiles[2].value == StatFormatting.unavailable) // StubProbes reports no power
         model.stop()
     }
+    @Test func readoutTextCombinesTheChosenStats() {
+        let center = makeCenter()
+        let model = StatsViewModel(center: center, ids: MenuBarReadout.timerCPUAndPower.metricIDs, interval: 2)
+        model.start()
+        // CPU answers, power doesn't, so only the readable part shows.
+        #expect(model.readoutText(for: .timerCPUAndPower) == "20%")
+        #expect(model.readoutText(for: .timerAndCPU) == "20%")
+        #expect(model.readoutText(for: .timer) == "")
+        model.stop()
+    }
 }
 
 /// Minimal probes for app-side tests: CPU, memory and uptime answer; power never does.

@@ -61,4 +61,16 @@ final class StatsViewModel {
                           detail: "since boot", symbol: "clock.arrow.circlepath"),
         ]
     }
+
+    /// The menu-bar suffix, e.g. "12% · 38.4 W". Stats that aren't readable are left out entirely.
+    func readoutText(for readout: MenuBarReadout) -> String {
+        var parts: [String] = []
+        if readout.metricIDs.contains(.cpu), let cpu = snapshot.cpu {
+            parts.append(StatFormatting.percent(cpu.total))
+        }
+        if readout.metricIDs.contains(.power), let power = snapshot.power {
+            parts.append(StatFormatting.watts(power.watts))
+        }
+        return parts.joined(separator: " · ")
+    }
 }
