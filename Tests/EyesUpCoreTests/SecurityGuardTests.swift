@@ -13,7 +13,8 @@ import Testing
         (#"\bNSTask\b"#, "launching processes"),
         (#"\bposix_spawn"#, "launching processes"),
         (#"\bpopen\s*\("#, "launching processes"),
-        (#"\bsystem\s*\("#, "launching processes"),
+        // C system(), bare or module-qualified; not SwiftUI's `.system(size:)` font.
+        (#"(?:^|[^.\w]|Darwin\.|Glibc\.)system\s*\("#, "launching processes"),
         (#"\bexec(l|lp|le|v|vp|ve)\s*\("#, "launching processes"),
         (#"NSAppleScript|OSAScript"#, "running scripts"),
         (#"\bURLSession\b"#, "network access"),
@@ -34,6 +35,9 @@ import Testing
         #expect(try Self.violations(in: "let p = Process()") == ["launching processes"])
         #expect(try Self.violations(in: "URLSession.shared") == ["network access"])
         #expect(try Self.violations(in: "let id = ProcessIdentity(pid: 1, startTime: 2)").isEmpty)
+        #expect(try Self.violations(in: ".font(.system(size: 34))").isEmpty)
+        #expect(try Self.violations(in: "system(\"ls\")") == ["launching processes"])
+        #expect(try Self.violations(in: "_ = Darwin.system(cmd)") == ["launching processes"])
     }
 
     @Test func sourcesContainNoForbiddenAPIs() throws {
