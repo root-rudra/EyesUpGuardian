@@ -1,0 +1,95 @@
+import Foundation
+import Observation
+
+/// User settings (spec §8). Decoding tolerates missing keys so later versions can add fields
+/// without a schema bump, and out-of-range values fall back to their defaults.
+public struct AppSettings: Codable, Equatable, Sendable {
+    public static let minSafetyCapHours = 1.0
+    public static let maxSafetyCapHours = 168.0
+    /// Longest a "pause until" may sit in the future before it's treated as stale.
+    public static let maxPauseDays = 30.0
+
+    public var safetyCapHours: Double?
+    public var thermalAutoRelease: Bool
+    public var automationEnabled: Bool
+    public var triggerPause: TriggerPause
+
+    public init(
+        safetyCapHours: Double? = nil,
+        thermalAutoRelease: Bool = true,
+        automationEnabled: Bool = false,
+        triggerPause: TriggerPause = .none
+    ) {
+        self.safetyCapHours = safetyCapHours
+        self.thermalAutoRelease = thermalAutoRelease
+        self.automationEnabled = automationEnabled
+        self.triggerPause = triggerPause
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        safetyCapHours = try container.decodeIfPresent(Double.self, forKey: .safetyCapHours)
+        thermalAutoRelease = try container.decodeIfPresent(Bool.self, forKey: .thermalAutoRelease) ?? true
+        automationEnabled = try container.decodeIfPresent(Bool.self, forKey: .automationEnabled) ?? false
+        triggerPause = try container.decodeIfPresent(TriggerPause.self, forKey: .triggerPause) ?? .none
+    }
+
+    public func validated(now: Date = Date()) -> AppSettings {
+        var settings = self
+        if let hours = settings.safetyCapHours {
+            let usable = hours.isFinite && hours >= Self.minSafetyCapHours && hours <= Self.maxSafetyCapHours
+            settings.safetyCapHours = usable ? hours : nil
+        }
+        if case .until(let date) = settings.triggerPause,
+           date.timeIntervalSince(now) > Self.maxPauseDays * 86_400 {
+            settings.triggerPause = .none
+        }
+        return settings
+    }
+}
+
+/// Holds the settings, saves every change, and tells whoever cares.
+@MainActor
+@Observable
+public final class SettingsController {
+    public private(set) var settings: AppSettings
+    public private(set) var storeNotice: String?
+    @ObservationIgnored public var onChange: ((AppSettings) -> Void)?
+
+    @ObservationIgnored private let store: JSONFileStore<AppSettings>?
+
+    public init(store: JSONFileStore<AppSettings>?, settings: AppSettings = AppSettings()) {
+        self.store = store
+        self.settings = settings
+    }
+
+    public func load() {
+        guard let store else { return }
+        switch store.load() {
+        case .missing:
+            break
+        case .loaded(let saved):
+            settings = saved.validated()
+        case .corrupt:
+            storeNotice = "Settings couldn't be read, so they were reset to their defaults."
+        }
+        onChange?(settings)
+    }
+
+    public func update(_ change: (inout AppSettings) -> Void) {
+        var updated = settings
+        change(&updated)
+        settings = updated.validated()
+        persist()
+        onChange?(settings)
+    }
+
+    private func persist() {
+        guard let store else { return }
+        do {
+            try store.save(settings)
+        } catch {
+            storeNotice = "Couldn't save settings: \(error.localizedDescription)"
+        }
+    }
+}
