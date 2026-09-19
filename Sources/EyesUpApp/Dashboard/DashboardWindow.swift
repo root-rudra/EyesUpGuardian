@@ -8,7 +8,7 @@ import SwiftUI
 @Observable
 final class DashboardState {
     enum Tab: String, CaseIterable, Identifiable, Hashable {
-        case overview, triggers, settings
+        case overview, triggers, processes, settings
 
         var id: String { rawValue }
 
@@ -16,6 +16,7 @@ final class DashboardState {
             switch self {
             case .overview: "Overview"
             case .triggers: "Triggers"
+            case .processes: "Processes"
             case .settings: "Settings"
             }
         }
@@ -24,6 +25,7 @@ final class DashboardState {
             switch self {
             case .overview: "gauge.with.dots.needle.50percent"
             case .triggers: "bolt.badge.clock"
+            case .processes: "list.bullet.rectangle"
             case .settings: "gearshape"
             }
         }
@@ -32,6 +34,8 @@ final class DashboardState {
     var tab: Tab = .overview
     /// Kept for the window's lifetime so switching tabs doesn't restart sampling from scratch.
     var overviewStats: StatsViewModel?
+    var processesStats: StatsViewModel?
+    let processes = ProcessesState()
     var editingDraft: TriggerDraft?
     var errorMessage: String?
 }
@@ -59,6 +63,9 @@ final class DashboardWindowController {
                 ids: [.cpu, .memory, .system, .storage, .network, .power, .fans, .temperature, .gpu, .otherAssertions],
                 interval: 1
             )
+        }
+        if state.processesStats == nil {
+            state.processesStats = StatsViewModel(center: environment.metrics, ids: [.processes, .system], interval: 2)
         }
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 780, height: 540),
@@ -93,6 +100,10 @@ struct DashboardView: View {
                 case .overview:
                     if let stats = state.overviewStats { OverviewTab(environment: environment, stats: stats) }
                 case .triggers: TriggersTab(environment: environment, state: state)
+                case .processes:
+                    if let stats = state.processesStats {
+                        ProcessesTab(environment: environment, stats: stats, state: state.processes)
+                    }
                 case .settings: SettingsTab(environment: environment)
                 }
             }

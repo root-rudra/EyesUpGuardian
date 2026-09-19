@@ -100,6 +100,7 @@ final class FakeInspector: ProcessInspecting, @unchecked Sendable {
     var details: [Int32: ProcessDetails] = [:]
     var cpuSecondsByPID: [Int32: Double] = [:]
     var allPIDs: [Int32] = []
+    var paths: [Int32: String] = [:]
     func identity(of pid: Int32) -> ProcessIdentity? { identities[pid] }
     func name(of pid: Int32) -> String? { names[pid] }
 }

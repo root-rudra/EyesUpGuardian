@@ -27,6 +27,7 @@ public protocol ProcessInspecting: Sendable {
     func ownerUID(of pid: Int32) -> uid_t?
     func details(of pid: Int32) -> ProcessDetails?
     func allProcessIDs() -> [Int32]
+    func executablePath(of pid: Int32) -> String?
 }
 
 /// Reads process facts with libproc. It works without admin rights for the user's own processes.
@@ -98,5 +99,13 @@ public struct LibprocInspector: ProcessInspecting {
             uid: info.pbi_uid,
             identity: identity
         )
+    }
+
+    public func executablePath(of pid: Int32) -> String? {
+        guard pid > 0 else { return nil }
+        var buffer = [CChar](repeating: 0, count: 4096)
+        let length = proc_pidpath(pid, &buffer, UInt32(buffer.count))
+        guard length > 0 else { return nil }
+        return String(decoding: buffer.prefix(Int(length)).map { UInt8(bitPattern: $0) }, as: UTF8.self)
     }
 }

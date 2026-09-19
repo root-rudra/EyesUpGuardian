@@ -177,6 +177,8 @@ extension FakeInspector {
     }
 
     func allProcessIDs() -> [Int32] { allPIDs }
+
+    func executablePath(of pid: Int32) -> String? { paths[pid] }
 }
 
 final class FakeProbes: MetricsProbing, @unchecked Sendable {
