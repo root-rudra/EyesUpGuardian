@@ -82,3 +82,24 @@ final class FakeScheduler: TimerScheduling {
         }
     }
 }
+
+final class FakeInspector: ProcessInspecting, @unchecked Sendable {
+    var identities: [Int32: ProcessIdentity] = [:]
+    var names: [Int32: String] = [:]
+    func identity(of pid: Int32) -> ProcessIdentity? { identities[pid] }
+    func name(of pid: Int32) -> String? { names[pid] }
+}
+
+@MainActor
+final class FakeExitWatcher: ProcessExitWatching {
+    private(set) var watched: [ProcessIdentity: @MainActor @Sendable () -> Void] = [:]
+
+    func watch(_ identity: ProcessIdentity, onExit: @escaping @MainActor @Sendable () -> Void) -> any ScheduledTask {
+        watched[identity] = onExit
+        return FakeTask { [weak self] in self?.watched[identity] = nil }
+    }
+
+    func simulateExit(_ identity: ProcessIdentity) {
+        watched.removeValue(forKey: identity)?()
+    }
+}
