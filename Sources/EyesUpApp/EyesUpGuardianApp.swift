@@ -12,6 +12,7 @@ struct EyesUpGuardianApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var environment: AppEnvironment?
     private var statusItem: StatusItemController?
+    private var dashboard: DashboardWindowController?
     private var headsUp: HeadsUpNotifier?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -29,8 +30,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         environment.safety.onThermalRelease = { [weak notifier] in
             notifier?.postInfo("Your Mac got too hot, so EyesUpGuardian let it sleep.", id: "thermal")
         }
+        let dashboard = DashboardWindowController(environment: environment)
         let statusItem = StatusItemController(controller: environment.controller)
-        statusItem.setPopoverContent(PopoverView(controller: environment.controller, form: PopoverFormState()))
+        statusItem.onOpenDashboard = { dashboard.show() }
+        statusItem.setPopoverContent(PopoverView(
+            controller: environment.controller,
+            onOpenDashboard: { dashboard.show() },
+            form: PopoverFormState()
+        ))
+        self.dashboard = dashboard
         self.statusItem = statusItem
         self.environment = environment
     }

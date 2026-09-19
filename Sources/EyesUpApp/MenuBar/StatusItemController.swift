@@ -9,6 +9,8 @@ final class StatusItemController: NSObject {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popover = NSPopover()
     private var minuteTimer: Timer?
+    /// Set by the app delegate; shows the dashboard window.
+    var onOpenDashboard: (() -> Void)?
 
     init(controller: AwakeController) {
         self.controller = controller
@@ -105,6 +107,7 @@ final class StatusItemController: NSObject {
         let stop = menuItem("Stop Keeping Awake", #selector(stopAll))
         stop.isEnabled = controller.isAwake
         menu.addItem(stop)
+        menu.addItem(menuItem("Open Dashboard…", #selector(openDashboard)))
         menu.addItem(.separator())
         menu.addItem(menuItem("Quit EyesUpGuardian", #selector(quit), key: "q"))
         statusItem.menu = menu
@@ -121,5 +124,6 @@ final class StatusItemController: NSObject {
     @objc private func startOneHour() { _ = try? controller.startTimer(duration: 3600, policy: controller.currentPolicy) }
     @objc private func startIndefinitely() { controller.startIndefinite(policy: controller.currentPolicy) }
     @objc private func stopAll() { controller.stopAll() }
+    @objc private func openDashboard() { onOpenDashboard?() }
     @objc private func quit() { NSApp.terminate(nil) }
 }

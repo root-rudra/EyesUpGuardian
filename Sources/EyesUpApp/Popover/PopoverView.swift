@@ -4,6 +4,7 @@ import SwiftUI
 
 struct PopoverView: View {
     let controller: AwakeController
+    let onOpenDashboard: () -> Void
 
     /// Owned by the caller (the popover's root is created once), so it persists without `@State`,
     /// whose macro plugin ships only with full Xcode, not the Command Line Tools.
@@ -226,6 +227,8 @@ struct PopoverView: View {
         HStack {
             Text("EyesUpGuardian").font(.caption2).foregroundStyle(.tertiary)
             Spacer()
+            Button("Dashboard ↗") { onOpenDashboard() }
+                .buttonStyle(.plain).font(.caption).foregroundStyle(.secondary)
             Button("Quit") { NSApp.terminate(nil) }
                 .buttonStyle(.plain).font(.caption).foregroundStyle(.secondary)
         }
