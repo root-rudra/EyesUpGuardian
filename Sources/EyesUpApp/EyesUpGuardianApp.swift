@@ -46,7 +46,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.setPopoverContent(PopoverView(
             controller: environment.controller,
             onOpenDashboard: { dashboard.show() },
-            form: PopoverFormState()
+            form: PopoverFormState(),
+            stats: StatsViewModel(center: environment.metrics,
+                                  ids: [.cpu, .memory, .power, .temperature, .system, .otherAssertions],
+                                  interval: 1)
         ))
         self.dashboard = dashboard
         self.statusItem = statusItem

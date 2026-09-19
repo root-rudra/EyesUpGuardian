@@ -9,6 +9,7 @@ struct PopoverView: View {
     /// Owned by the caller (the popover's root is created once), so it persists without `@State`,
     /// whose macro plugin ships only with full Xcode, not the Command Line Tools.
     @Bindable var form: PopoverFormState
+    let stats: StatsViewModel
 
     private var mood: AmbientBackground.Mood { controller.isAwake ? .awake : .idle }
     private var newPolicy: SleepPolicy { form.displayForNew || controller.displayOn ? [.system, .display] : .system }
@@ -19,12 +20,16 @@ struct PopoverView: View {
             presets
             entryPanel
             if controller.isAwake { activeHolds }
+            statTiles
+            otherAppsWarning
             messages
             footer
         }
         .padding(18)
         .frame(width: 320)
         .background(AmbientBackground(mood: mood))
+        .onAppear { stats.start() }
+        .onDisappear { stats.stop() }
     }
 
     // MARK: Header: live countdown (TimelineView ticks only while the popover is on screen)
@@ -203,6 +208,26 @@ struct PopoverView: View {
         case .deadline: "timer"
         case .processExit: "gearshape"
         case .triggerControlled: "bolt"
+        }
+    }
+
+    private var statTiles: some View {
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
+            ForEach(stats.tiles) { tile in
+                StatTile(title: tile.title, value: tile.value, detail: tile.detail, symbol: tile.symbol)
+            }
+        }
+    }
+
+    /// Spec §7.2: say when something *else* is the reason the Mac won't sleep.
+    @ViewBuilder
+    private var otherAppsWarning: some View {
+        if let others = stats.snapshot.otherAssertions, !others.isEmpty {
+            let names = Set(others.map(\.processName)).sorted().prefix(3).joined(separator: ", ")
+            Label("\(names) \(others.count == 1 ? "is" : "are") also keeping your Mac awake",
+                  systemImage: "exclamationmark.bubble")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
