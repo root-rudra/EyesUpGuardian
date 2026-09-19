@@ -178,3 +178,29 @@ extension FakeInspector {
 
     func allProcessIDs() -> [Int32] { allPIDs }
 }
+
+final class FakeProbes: MetricsProbing, @unchecked Sendable {
+    var cpuTotal = 25.0
+    var powerAvailable = true
+    private(set) var sampleCount = 0
+    private(set) var resetCount = 0
+    private(set) var lastRequested: Set<MetricID> = []
+
+    func sample(_ ids: Set<MetricID>) -> MetricsSnapshot {
+        sampleCount += 1
+        lastRequested = ids
+        var snapshot = MetricsSnapshot()
+        if ids.contains(.cpu) {
+            snapshot.cpu = CPUMetrics(total: cpuTotal, cores: [cpuTotal], performance: nil, efficiency: nil)
+        }
+        if ids.contains(.memory) {
+            snapshot.memory = MemoryMetrics(usedBytes: 1, appBytes: 1, wiredBytes: 1, compressedBytes: 0,
+                                            totalBytes: 2, swapUsedBytes: 0, pressure: .normal)
+        }
+        if ids.contains(.power), powerAvailable { snapshot.power = PowerMetrics(watts: 40) }
+        if ids.contains(.network) { snapshot.network = NetworkMetrics(inBytesPerSecond: 1, outBytesPerSecond: 1) }
+        return snapshot
+    }
+
+    func resetBaselines() { resetCount += 1 }
+}

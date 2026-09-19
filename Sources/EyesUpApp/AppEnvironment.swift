@@ -14,6 +14,7 @@ final class AppEnvironment {
     let engine: TriggerEngine
     let settings: SettingsController
     let safety: SafetyGuard
+    let metrics: MetricsCenter
     let workspace: LiveWorkspaceEvents
 
     private var observers: [NSObjectProtocol] = []
@@ -42,6 +43,7 @@ final class AppEnvironment {
             store: JSONFileStore(url: directory.appendingPathComponent("settings.json"), schemaVersion: 1)
         )
         safety = SafetyGuard(controller: controller, thermal: LiveThermalMonitor())
+        metrics = MetricsCenter(probes: LiveProbes(), scheduler: scheduler)
         self.workspace = workspace
     }
 
@@ -59,6 +61,7 @@ final class AppEnvironment {
             MainActor.assumeIsolated {
                 self?.controller.refresh()
                 self?.engine.refresh()
+                self?.metrics.refresh()
             }
         }
         let workspaceCenter = NSWorkspace.shared.notificationCenter
