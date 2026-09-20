@@ -29,6 +29,13 @@ import Testing
         #expect(ProcessOrigin.of(executablePath: path) == .installed)
     }
 
+    /// The data volume is reached through a firmlink under /System, but nothing there is Apple's.
+    @Test func theDataVolumeIsNotTheSystemVolume() {
+        #expect(ProcessOrigin.of(executablePath: "/System/Volumes/Data/Applications/Foo.app/Contents/MacOS/Foo") == .installed)
+        #expect(ProcessOrigin.of(executablePath: "/System/Volumes/Data/opt/thing/bin/thing") == .installed)
+        #expect(ProcessOrigin.of(executablePath: "/System/Library/CoreServices/Dock.app/Contents/MacOS/Dock") == .macOS)
+    }
+
     /// `/usr/local` is the one writable part of `/usr`, so it must not be mistaken for the OS.
     @Test func usrLocalIsNotTheSystem() {
         #expect(ProcessOrigin.of(executablePath: "/usr/local/bin/brew") == .installed)

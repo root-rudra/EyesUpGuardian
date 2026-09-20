@@ -60,6 +60,22 @@ final class DashboardState {
     let settings = SettingsTabState()
     var editingDraft: TriggerDraft?
     var errorMessage: String?
+
+    /// Every metrics claim this window holds. The window stops these when it is closed, minimised
+    /// or fully covered, so a claim that isn't listed here would keep sampling with nothing on
+    /// screen — which is exactly what happened when Overview gained its second subscription.
+    var sampling: [StatsViewModel] {
+        [overviewStats, overviewSlowStats, processesStats].compactMap { $0 }
+    }
+
+    /// What the given tab needs while it is on screen.
+    func sampling(for tab: Tab) -> [StatsViewModel] {
+        switch tab {
+        case .overview: [overviewStats, overviewSlowStats].compactMap { $0 }
+        case .processes: [processesStats].compactMap { $0 }
+        case .triggers, .history, .settings: []
+        }
+    }
 }
 
 /// Owns the single dashboard window. Reused if it's already open.
@@ -75,10 +91,13 @@ final class DashboardWindowController: NSObject, NSWindowDelegate {
     }
 
     func show() {
-        // Qualified: SwiftUI has its own `Tab` type in scope here.
-        state.tab = DashboardState.Tab(rawValue: environment.settings.settings.dashboardTab) ?? state.tab
-        state.onTabChange = { [environment] tab in
-            environment.settings.update { $0.dashboardTab = tab.rawValue }
+        if state.onTabChange == nil {
+            // Qualified: SwiftUI has its own `Tab` type in scope here.
+            state.tab = DashboardState.Tab(rawValue: environment.settings.settings.dashboardTab) ?? state.tab
+            state.onTabChange = { [environment] tab in
+                guard environment.settings.settings.dashboardTab != tab.rawValue else { return }
+                environment.settings.update { $0.dashboardTab = tab.rawValue }
+            }
         }
         if let window {
             window.makeKeyAndOrderFront(nil)
@@ -134,16 +153,11 @@ final class DashboardWindowController: NSObject, NSWindowDelegate {
     }
 
     private func stopSampling() {
-        state.overviewStats?.stop()
-        state.processesStats?.stop()
+        for model in state.sampling { model.stop() }
     }
 
     private func startVisibleTab() {
-        switch state.tab {
-        case .overview: state.overviewStats?.start()
-        case .processes: state.processesStats?.start()
-        case .triggers, .history, .settings: break
-        }
+        for model in state.sampling(for: state.tab) { model.start() }
     }
 
 }

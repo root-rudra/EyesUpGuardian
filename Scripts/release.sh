@@ -15,7 +15,9 @@ make app
 
 if [ -n "${DEVELOPER_ID:-}" ]; then
     echo "Signing with: $DEVELOPER_ID"
-    codesign --force --deep --options runtime --timestamp --sign "$DEVELOPER_ID" "$APP"
+    # No --deep: Apple deprecated it for signing, and it is the classic way to get a bundle that
+    # verifies locally and is refused by notarisation once it gains nested content.
+    codesign --force --options runtime --timestamp --sign "$DEVELOPER_ID" "$APP"
     codesign --verify --strict --verbose=2 "$APP"
 else
     echo "No DEVELOPER_ID set — shipping the ad-hoc signature."
@@ -23,10 +25,10 @@ fi
 
 rm -f "$DMG"
 STAGING="$(mktemp -d)"
+trap 'rm -rf "$STAGING"' EXIT
 cp -R "$APP" "$STAGING/"
 ln -s /Applications "$STAGING/Applications"
 hdiutil create -volname "EyesUpGuardian" -srcfolder "$STAGING" -ov -format UDZO "$DMG"
-rm -rf "$STAGING"
 
 if [ -n "${NOTARY_PROFILE:-}" ]; then
     echo "Notarizing…"

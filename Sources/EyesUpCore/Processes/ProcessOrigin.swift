@@ -47,6 +47,10 @@ public enum ProcessOrigin: String, Codable, CaseIterable, Sendable {
 
     public static func of(executablePath path: String?) -> ProcessOrigin {
         guard let path, path.hasPrefix("/") else { return .unknown }
+        // `/System/Volumes/Data/...` is the writable data volume seen through a firmlink, not the
+        // sealed system volume. Calling anything under it "shipped with macOS" is the one mistake
+        // this classification cannot afford.
+        if path.hasPrefix("/System/Volumes/") { return .installed }
         if systemPrefixes.contains(where: { path.hasPrefix($0) }) { return .macOS }
         return .installed
     }

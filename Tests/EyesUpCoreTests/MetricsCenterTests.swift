@@ -158,4 +158,22 @@ import Testing
         fast.cancel()
         slow.cancel()
     }
+    /// Two charts side by side must cover the same stretch of time, not the same number of samples:
+    /// at 5 s a 300-sample history would be 25 minutes next to CPU's 5.
+    @Test func everyMetricKeepsAboutTheSameStretchOfHistory() {
+        let center = makeCenter()
+        let fast = center.subscribe([.cpu], interval: 1)
+        let slow = center.subscribe([.power], interval: 5)
+
+        for tick in 1...400 {
+            clock.advance(1)
+            scheduler.runDue(at: clock.now)
+            _ = tick
+        }
+
+        #expect(center.history(.cpu).count == 300)   // 5 minutes at 1 s
+        #expect(center.history(.power).count == 60)  // 5 minutes at 5 s
+        fast.cancel()
+        slow.cancel()
+    }
 }

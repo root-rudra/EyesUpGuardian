@@ -146,6 +146,10 @@ Measured on the reference Mac (M3 Ultra Mac Studio, macOS 26) with `make perf`, 
 | Dashboard open, Overview | 1.5–1.7% | 35 MB |
 | Dashboard open, Processes (5 s refresh) | 1.3% | 56 MB |
 
+Closing the dashboard stops every one of those measurements: the window's claims are released when
+it closes, minimises, or is fully covered by another window, and the app drops the process icons it
+had cached.
+
 Why it stays that low:
 
 - **It measures only what you're looking at.** Close the dashboard and the popover and sampling

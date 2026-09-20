@@ -88,7 +88,10 @@ struct ProcessesTab: View {
             stats.setInterval(settings.processRefreshSeconds)
             stats.start()
         }
-        .onDisappear { stats.stop() }
+        .onDisappear {
+            stats.stop()
+            ProcessIcons.forget()
+        }
         .confirmationDialog(
             state.confirmingQuit.map { "\(state.forceQuit ? "Force quit" : "Quit") \($0.name) (PID \($0.pid))?" } ?? "",
             isPresented: Binding(get: { state.confirmingQuit != nil }, set: { if !$0 { state.confirmingQuit = nil } }),
@@ -266,8 +269,17 @@ struct ProcessesTab: View {
         }
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .contextMenu(forSelectionType: ProcessEntry.ID.self) { ids in
-            if let entry = entries.first(where: { ids.contains($0.id) }) {
+            let chosen = entries.filter { ids.contains($0.id) }
+            if chosen.count == 1, let entry = chosen.first {
                 menu(for: entry)
+            } else if chosen.count > 1 {
+                // Quitting one of several selected rows without saying which is worse than not
+                // offering it at all.
+                Button("Copy \(chosen.count) PIDs") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(chosen.map { String($0.pid) }.joined(separator: " "), forType: .string)
+                }
+                Text("Select one process to quit it or keep the Mac awake until it exits.")
             }
         }
     }

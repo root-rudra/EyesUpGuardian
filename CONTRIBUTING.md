@@ -18,7 +18,7 @@ These are enforced by `Tests/EyesUpCoreTests/SecurityGuardTests.swift`, which fa
 
 - **No running commands, no network, no privilege escalation, no loading code at runtime.**
 - **No third-party dependencies.** `Package.swift` declares none, and no binary targets or plugins.
-- Anything that has to break a rule is marked `// security-allow: <why>` on the line itself. There is currently one.
+- Anything that has to break a rule is marked `// security-allow: <why>` on the line itself. There are currently two, both listed in [SECURITY.md](SECURITY.md); `grep -rn "security-allow:" Sources/` shows them.
 - `EyesUpCore` contains the logic and no UI; `EyesUpApp` draws and forwards intents. Core must not import SwiftUI or AppKit.
 - **Don't use SwiftUI `@State`.** With the Command Line Tools alone it needs a macro plugin that ships only with Xcode. Use an `@Observable` class and `@Bindable`.
 - Tests first. Every behaviour change arrives with a test that failed before the change.

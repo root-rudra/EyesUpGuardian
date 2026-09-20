@@ -37,7 +37,11 @@ public final class MetricsSubscription {
 @MainActor
 @Observable
 public final class MetricsCenter {
-    /// Five minutes of 1 s samples (spec §3.4).
+    /// How much past each chart shows (spec §3.4). Kept as a duration, not a sample count: metrics
+    /// sample at different rates now, and two charts drawn side by side must not quietly cover
+    /// different spans.
+    public static let historySpan: TimeInterval = 300
+    /// The most samples any one metric keeps, whatever its rate.
     public static let historyLength = 300
 
     public private(set) var snapshot = MetricsSnapshot()
@@ -193,7 +197,8 @@ public final class MetricsCenter {
         for (id, value) in values {
             var series = histories[id] ?? []
             series.append(value)
-            if series.count > Self.historyLength { series.removeFirst(series.count - Self.historyLength) }
+            let keep = min(Self.historyLength, max(30, Int(Self.historySpan / interval(for: id))))
+            if series.count > keep { series.removeFirst(series.count - keep) }
             histories[id] = series
         }
     }

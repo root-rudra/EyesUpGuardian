@@ -172,4 +172,30 @@ import Testing
         }
         #expect(inspector.pathLookups == 1)
     }
+    /// The cached path is kept under the process identity, so a PID reused by something else is
+    /// looked up again instead of inheriting the old process's path — and its origin with it.
+    @Test func aRecycledPIDGetsAFreshPathLookup() {
+        let clock = FakeClock()
+        let inspector = FakeInspector()
+        inspector.allPIDs = [9]
+        inspector.identities[9] = ProcessIdentity(pid: 9, startTime: 1)
+        inspector.details[9] = ProcessDetails(name: "first", cpuSeconds: 1, memoryBytes: 1, threads: 1,
+                                              uid: getuid(), identity: ProcessIdentity(pid: 9, startTime: 1))
+        inspector.paths[9] = "/usr/libexec/something"
+        let probe = ProcessProbe(inspector: inspector, clock: clock, ownUID: getuid())
+        clock.advance(1)
+        _ = probe.sample()
+        clock.advance(1)
+        #expect((probe.sample() ?? []).first?.origin == .macOS)
+
+        // Same PID, different process.
+        inspector.identities[9] = ProcessIdentity(pid: 9, startTime: 2)
+        inspector.details[9] = ProcessDetails(name: "second", cpuSeconds: 1, memoryBytes: 1, threads: 1,
+                                              uid: getuid(), identity: ProcessIdentity(pid: 9, startTime: 2))
+        inspector.paths[9] = "/Applications/Thing.app/Contents/MacOS/Thing"
+        clock.advance(1)
+        _ = probe.sample()
+        clock.advance(1)
+        #expect((probe.sample() ?? []).first?.origin == .installed)
+    }
 }

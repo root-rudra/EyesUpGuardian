@@ -218,4 +218,11 @@ import Testing
         settings.processRefreshSeconds = 1
         #expect(settings.validated().processRefreshSeconds == 1)
     }
+    @Test func anAbsurdSavedTabNameFallsBackRatherThanBeingKept() {
+        var settings = AppSettings()
+        settings.dashboardTab = String(repeating: "x", count: 500)
+        #expect(settings.validated().dashboardTab == "overview")
+        settings.dashboardTab = "processes"
+        #expect(settings.validated().dashboardTab == "processes")
+    }
 }

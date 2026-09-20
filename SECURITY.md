@@ -11,10 +11,13 @@ EyesUpGuardian keeps your Mac awake. That is all it does, and this file lists ex
 - **Write anywhere but its own folder.** Every write goes to `~/Library/Application Support/EyesUpGuardian/`, and its files are created readable only by you (`0600`, in a `0700` folder).
 - **Load code at runtime.** No `dlopen`/`dlsym` in app code. (The binary does import `dlsym`: it comes from the Swift toolchain's own OS-version check, not from this app. None of the app's object files reference it.)
 
-**Two things it does do, deliberately, and they are the only exceptions:**
+**Three things it does do, deliberately, and they are the only exceptions:**
 
-- **Reveal in Finder.** The Processes tab can ask Finder to show a process's file, when you choose it from a menu. That is the single call in the codebase allowed to activate another app, and it is marked in the source with `// security-allow:` so you can find it with `grep -rn "security-allow:" Sources/`.
+- **Reveal in Finder.** The Processes tab can ask Finder to show a process's file, when you choose it from a menu. That is the single call in the codebase allowed to activate another app.
+- **Read one file you picked yourself.** Importing settings reads the file chosen in an open panel, with the same 5 MB cap the app's own files have. It is the one `Data(contentsOf:)` in the codebase.
 - **Receive one Apple Event.** The `eyesup://` link arrives as the standard open-URL Apple Event, and macOS installs the usual quit/activate handlers for every app. The app sends none.
+
+The first two are marked in the source with `// security-allow:`, so `grep -rn "security-allow:" Sources/` lists exactly them — two lines, no more.
 
 A test enforces these (`Tests/EyesUpCoreTests/SecurityGuardTests.swift`): it scans every file in `Sources/` for forbidden API spellings — process launching, networking including `bind`/`listen`/`accept`, blind `Data(contentsOf:)`, XPC and Mach lookups, privilege escalation, runtime code loading, inbound channels — and fails the build on a match. It also checks the build scripts fetch nothing and the package declares no dependencies, binary targets, plugins or unsafe flags. Exceptions must be marked on the line that needs one, so they cannot hide. You can verify the built app independently:
 
@@ -44,7 +47,7 @@ That prints nothing: the app has no sockets at all, not merely no listening ones
 | `IOBlockStorageDriver` registry statistics | The "while the disk is busy" trigger. |
 | CoreGraphics display list and reconfiguration callback | The "while a display is connected" trigger. |
 | `host_statistics`, `sysctl` (`NET_RT_IFLIST2`) | CPU and network activity triggers. |
-| libproc (`proc_listallpids`, `proc_pidinfo`, `proc_pidpath`, `proc_name`) | Watching a process until it exits, and the "while a command is running" trigger. Only your own processes are visible. |
+| libproc (`proc_listallpids`, `proc_pidinfo`, `proc_pidpath`, `proc_name`) | Watching a process until it exits, the "while a command is running" trigger, and the process table. Other users' processes appear in the table the way they do in Activity Monitor — a name and, where macOS allows it, a path; only your own can be watched, signalled, or have their details read in full. Processes whose path macOS won't reveal are grouped as "Other" rather than guessed at. |
 | kqueue process source | Instant notice that a watched process exited. |
 | `NSWorkspace` running applications and launch/quit notifications | The "while an app is open" trigger. |
 | `UserNotifications` | The heads-up before your Mac may sleep, and trigger notices. |
