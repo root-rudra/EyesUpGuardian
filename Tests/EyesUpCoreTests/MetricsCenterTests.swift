@@ -105,4 +105,18 @@ import Testing
         #expect(probes.sampleCount == 2) // refresh re-samples immediately
         subscription.cancel()
     }
+    @Test func refreshDoesNotSampleOnTheMainActor() {
+        // resetBaselines takes the probe lock; doing that inline on the main actor lets a wake stall
+        // the UI for as long as a sample takes. It has to go through the executor like sampling does.
+        let executor = DeferredExecutor()
+        let center = MetricsCenter(probes: probes, executor: executor, clock: clock, scheduler: scheduler)
+        let subscription = center.subscribe([.network], interval: 1)
+        executor.runPending()
+
+        center.refresh()
+        #expect(probes.resetCount == 0, "refresh reset baselines on the main actor")
+        executor.runPending()
+        #expect(probes.resetCount == 1)
+        subscription.cancel()
+    }
 }

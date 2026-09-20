@@ -87,6 +87,8 @@ public struct LiveSystemCounters: SystemCounters {
 
     public func diskBytesRead() -> UInt64? { blockStorageBytes()?.read }
 
+    public func diskBytes() -> (read: UInt64, written: UInt64)? { blockStorageBytes() }
+
     private func blockStorageBytes() -> (read: UInt64, written: UInt64)? {
         var iterator: io_iterator_t = 0
         guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOBlockStorageDriver"), &iterator) == KERN_SUCCESS else {

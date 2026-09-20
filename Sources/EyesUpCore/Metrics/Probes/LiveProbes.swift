@@ -12,13 +12,24 @@ public final class LiveProbes: MetricsProbing, @unchecked Sendable {
     private let processes: ProcessProbe
     private let assertions = AssertionProbe()
     private let gpu = GPUProbe()
-    private let smc: SMCProbe?
+    /// Opened the first time something asks for power, fans or temperature, so the default
+    /// configuration holds no IOKit user client at all. Guarded by the same lock as sampling.
+    private var smcProbe: SMCProbe?
+    private var triedSMC = false
 
     public init(counters: any SystemCounters = LiveSystemCounters(), clock: any WallClock = SystemClock()) {
         storage = StorageProbe(counters: counters, clock: clock)
         network = NetworkProbe(counters: counters, clock: clock)
         processes = ProcessProbe(clock: clock)
-        smc = SMC().map { SMCProbe(smc: $0) }
+    }
+
+    /// Call with the lock held.
+    private func smc() -> SMCProbe? {
+        if !triedSMC {
+            triedSMC = true
+            smcProbe = SMC().map { SMCProbe(smc: $0) }
+        }
+        return smcProbe
     }
 
     public func sample(_ ids: Set<MetricID>) -> MetricsSnapshot {
@@ -34,9 +45,9 @@ public final class LiveProbes: MetricsProbing, @unchecked Sendable {
         if ids.contains(.processes) { snapshot.processes = processes.sample() }
         if ids.contains(.gpu) { snapshot.gpu = gpu.sample() }
         if ids.contains(.otherAssertions) { snapshot.otherAssertions = assertions.sample() }
-        if ids.contains(.power) { snapshot.power = smc?.power() }
-        if ids.contains(.fans) { snapshot.fans = smc?.fans() }
-        if ids.contains(.temperature) { snapshot.temperature = smc?.temperature() }
+        if ids.contains(.power) { snapshot.power = smc()?.power() }
+        if ids.contains(.fans) { snapshot.fans = smc()?.fans() }
+        if ids.contains(.temperature) { snapshot.temperature = smc()?.temperature() }
         return snapshot
     }
 

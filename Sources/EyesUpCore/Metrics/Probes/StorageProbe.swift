@@ -24,8 +24,10 @@ public final class StorageProbe {
               let total = values.volumeTotalCapacity, total > 0 else { return nil }
         let free = UInt64(max(0, values.volumeAvailableCapacityForImportantUsage ?? 0))
         let now = clock.now
-        let write = counters.diskBytesWritten().flatMap { writeMeter.rate(for: $0, at: now) }
-        let read = counters.diskBytesRead().flatMap { readMeter.rate(for: $0, at: now) }
+        // One walk of the disk drivers, so both numbers come from the same instant.
+        let disk = counters.diskBytes()
+        let write = disk.flatMap { writeMeter.rate(for: $0.written, at: now) }
+        let read = disk.flatMap { readMeter.rate(for: $0.read, at: now) }
         return StorageMetrics(
             freeBytes: min(free, UInt64(total)),
             totalBytes: UInt64(total),

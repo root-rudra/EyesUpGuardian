@@ -67,6 +67,11 @@ import Testing
         let storage = StorageProbe(counters: counters, clock: clock)
         _ = network.sample()
         _ = storage.sample()
+        counters.network = 2000
+        counters.disk = 2000
+        clock.advance(1)
+        // Without this the reset assertions below would pass even if nothing were ever measured.
+        #expect(storage.sample()?.readBytesPerSecond == 1000)
 
         counters.network = 50_000_000_000
         counters.disk = 50_000_000_000

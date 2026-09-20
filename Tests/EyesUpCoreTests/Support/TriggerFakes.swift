@@ -126,6 +126,8 @@ final class FakeCounters: SystemCounters, @unchecked Sendable {
     }
 
     func diskBytesRead() -> UInt64? { disk }
+
+    func diskBytes() -> (read: UInt64, written: UInt64)? { disk.map { (read: $0, written: $0) } }
 }
 
 @MainActor
@@ -206,4 +208,25 @@ final class FakeProbes: MetricsProbing, @unchecked Sendable {
     }
 
     func resetBaselines() { resetCount += 1 }
+}
+
+/// Holds sampling work until a test asks for it, so "did this run on the main actor?" is a fact
+/// rather than a stopwatch reading.
+final class DeferredExecutor: MetricsExecuting, @unchecked Sendable {
+    private let lock = NSLock()
+    private var pending: [@Sendable () -> MetricsSnapshot] = []
+
+    func run(_ work: @escaping @Sendable () -> MetricsSnapshot, completion: @escaping @MainActor (MetricsSnapshot) -> Void) {
+        lock.lock()
+        pending.append(work)
+        lock.unlock()
+    }
+
+    @MainActor func runPending() {
+        lock.lock()
+        let work = pending
+        pending.removeAll()
+        lock.unlock()
+        for item in work { _ = item() }
+    }
 }

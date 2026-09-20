@@ -75,8 +75,14 @@ public final class MetricsCenter {
 
     /// After a wake or a clock change: drop stale baselines and take a fresh sample.
     public func refresh() {
-        probes.resetBaselines()
         histories.removeAll()
+        // resetBaselines takes the probe lock, so it belongs on the sampling queue: a wake must
+        // never stall the main actor for the length of a sample.
+        let probes = probes
+        executor.run({
+            probes.resetBaselines()
+            return MetricsSnapshot()
+        }, completion: { _ in })
         sampleNow()
     }
 

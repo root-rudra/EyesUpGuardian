@@ -92,7 +92,7 @@ public struct JSONFileStore<Value: Codable & Sendable>: Sendable {
     private func moveAside(now: Date) -> URL? {
         let stem = url.deletingPathExtension().lastPathComponent
         let target = url.deletingLastPathComponent()
-            .appendingPathComponent("\(stem).corrupt-\(Int(now.timeIntervalSince1970)).json")
+            .appendingPathComponent("\(stem).corrupt-\(Int(now.timeIntervalSince1970))-\(UUID().uuidString.prefix(4)).json")
         do {
             try FileManager.default.moveItem(at: url, to: target)
             pruneCorruptFiles(keeping: target)

@@ -32,11 +32,14 @@ public protocol SystemCounters: Sendable {
     /// Bytes received and sent separately; nil when the interface list can't be read.
     func networkBytesSplit() -> (received: UInt64, sent: UInt64)?
     func diskBytesRead() -> UInt64?
+    /// Bytes read and written together, from one pass over the disk drivers.
+    func diskBytes() -> (read: UInt64, written: UInt64)?
 }
 
 extension SystemCounters {
     public func networkBytesSplit() -> (received: UInt64, sent: UInt64)? { nil }
     public func diskBytesRead() -> UInt64? { nil }
+    public func diskBytes() -> (read: UInt64, written: UInt64)? { nil }
 }
 
 public enum ThermalLevel: Int, Sendable, Comparable, CaseIterable {

@@ -171,4 +171,13 @@ import Testing
         let clamped = HoldRestorer.sanitized(tooLong, now: referenceDate)
         #expect(clamped?.effectiveDeadline == referenceDate.addingTimeInterval(AutomationParser.maxDuration))
     }
+    @Test func twoCorruptFilesInTheSameSecondBothSurvive() throws {
+        try write("nonsense")
+        _ = store.load(now: referenceDate)
+        try write("more nonsense")
+        _ = store.load(now: referenceDate) // same instant
+        let copies = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+            .filter { $0.contains(".corrupt-") }
+        #expect(copies.count == 2)
+    }
 }
