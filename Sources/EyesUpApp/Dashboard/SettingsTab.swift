@@ -1,10 +1,21 @@
 import AppKit
 import UniformTypeIdentifiers
 import EyesUpCore
+import Observation
 import SwiftUI
+
+/// Held by the dashboard, because this project builds without Xcode and SwiftUI's `@State` macro
+/// ships only with it.
+@MainActor
+@Observable
+final class SettingsTabState {
+    var confirmingClearHistory = false
+    var confirmingReset = false
+}
 
 struct SettingsTab: View {
     let environment: AppEnvironment
+    @Bindable var state: SettingsTabState
 
     private var settings: AppSettings { environment.settings.settings }
 
@@ -135,7 +146,26 @@ struct SettingsTab: View {
                         }
                     }
 
+                    Section("Sleep types") {
+                        Toggle("Also keep the disk awake (caffeinate -m)", isOn: Binding(
+                            get: { settings.keepDiskAwake },
+                            set: { on in environment.settings.update { $0.keepDiskAwake = on } }
+                        ))
+                        Toggle("Only prevent sleep while on AC power (caffeinate -s)", isOn: Binding(
+                            get: { settings.onlyOnACPower },
+                            set: { on in environment.settings.update { $0.onlyOnACPower = on } }
+                        ))
+                        Text("Added to every session you start yourself. Triggers keep the sleep types you gave them.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+
                     Section("Energy") {
+                        Toggle("Track energy", isOn: Binding(
+                            get: { settings.trackEnergy },
+                            set: { on in environment.settings.update { $0.trackEnergy = on } }
+                        ))
+                        Text("Reads power draw every 30 seconds so the History tab can show energy and cost. It is the only thing this app measures when nothing is on screen; turn it off and it measures nothing at all.")
+                            .font(.caption).foregroundStyle(.secondary)
                         LabeledContent("Electricity rate") {
                             TextField("none", value: Binding(
                                 get: { settings.electricityRate },
@@ -153,8 +183,35 @@ struct SettingsTab: View {
                             Button("Export settings…") { exportSettings() }
                             Button("Import settings…") { importSettings() }
                             Spacer()
-                            Button("Clear history", role: .destructive) { environment.history.clear() }
+                            Button("Clear history", role: .destructive) { state.confirmingClearHistory = true }
+                                .confirmationDialog(
+                                    "Clear all history?",
+                                    isPresented: Binding(get: { state.confirmingClearHistory },
+                                                         set: { state.confirmingClearHistory = $0 })
+                                ) {
+                                    Button("Clear history", role: .destructive) {
+                                        environment.history.clear()
+                                        state.confirmingClearHistory = false
+                                    }
+                                    Button("Cancel", role: .cancel) { state.confirmingClearHistory = false }
+                                } message: {
+                                    Text("Every session, sleep/wake event and energy day is deleted. This can't be undone.")
+                                }
                         }
+                        Button("Reset settings to defaults", role: .destructive) { state.confirmingReset = true }
+                            .confirmationDialog(
+                                "Reset every setting?",
+                                isPresented: Binding(get: { state.confirmingReset },
+                                                     set: { state.confirmingReset = $0 })
+                            ) {
+                                Button("Reset settings", role: .destructive) {
+                                    environment.settings.resetToDefaults()
+                                    state.confirmingReset = false
+                                }
+                                Button("Cancel", role: .cancel) { state.confirmingReset = false }
+                            } message: {
+                                Text("Your triggers, sessions and history are kept. Only the settings on this tab go back to their defaults.")
+                            }
                         Text("Everything this app stores lives in ~/Library/Application Support/EyesUpGuardian, readable only by you.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
@@ -197,7 +254,14 @@ struct SettingsTab: View {
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
-            try environment.settings.importSettings(Data(contentsOf: url)) // security-allow: a file the user picked in an open panel
+            // Capped like the app's own reads: a settings file is a few hundred bytes, and reading
+            // an arbitrary multi-gigabyte file into memory is not a thing this app should do.
+            let data = try Data(contentsOf: url, options: .alwaysMapped) // security-allow: a file the user picked in an open panel
+            guard data.count <= JSONFileStore<AppSettings>.maxFileSize else {
+                environment.settings.reportNotice("That file is too large to be a settings file.")
+                return
+            }
+            try environment.settings.importSettings(Data(data))
         } catch {
             environment.settings.reportNotice("That file isn't a settings file this app can read.")
         }

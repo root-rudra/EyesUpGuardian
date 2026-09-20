@@ -87,6 +87,12 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var keepDisplayOnByDefault: Bool
     public var launchAtLogin: Bool
     public var globalShortcutEnabled: Bool
+    /// Spec §6.3: the one thing that samples while nothing is on screen.
+    public var trackEnergy: Bool
+    /// caffeinate -m: also keep the disk from idling.
+    public var keepDiskAwake: Bool
+    /// caffeinate -s: prevent sleep only while on AC power.
+    public var onlyOnACPower: Bool
 
     public init(
         safetyCapHours: Double? = nil,
@@ -102,7 +108,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
         headsUpLeadMinutes: Double = 5,
         keepDisplayOnByDefault: Bool = false,
         launchAtLogin: Bool = false,
-        globalShortcutEnabled: Bool = true
+        globalShortcutEnabled: Bool = true,
+        trackEnergy: Bool = true,
+        keepDiskAwake: Bool = false,
+        onlyOnACPower: Bool = false
     ) {
         self.safetyCapHours = safetyCapHours
         self.thermalAutoRelease = thermalAutoRelease
@@ -118,6 +127,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.keepDisplayOnByDefault = keepDisplayOnByDefault
         self.launchAtLogin = launchAtLogin
         self.globalShortcutEnabled = globalShortcutEnabled
+        self.trackEnergy = trackEnergy
+        self.keepDiskAwake = keepDiskAwake
+        self.onlyOnACPower = onlyOnACPower
     }
 
     public init(from decoder: any Decoder) throws {
@@ -137,6 +149,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
         keepDisplayOnByDefault = try container.decodeIfPresent(Bool.self, forKey: .keepDisplayOnByDefault) ?? false
         launchAtLogin = try container.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? false
         globalShortcutEnabled = try container.decodeIfPresent(Bool.self, forKey: .globalShortcutEnabled) ?? true
+        trackEnergy = try container.decodeIfPresent(Bool.self, forKey: .trackEnergy) ?? true
+        keepDiskAwake = try container.decodeIfPresent(Bool.self, forKey: .keepDiskAwake) ?? false
+        onlyOnACPower = try container.decodeIfPresent(Bool.self, forKey: .onlyOnACPower) ?? false
     }
 
     public func validated(now: Date = Date()) -> AppSettings {
@@ -192,6 +207,11 @@ public final class SettingsController {
 
     /// Notices are dismissible: one bad launch shouldn't leave a permanent banner.
     public func clearNotice() { storeNotice = nil }
+
+    /// Spec §7.3. Triggers and history are separate files and are left alone.
+    public func resetToDefaults() {
+        update { $0 = AppSettings() }
+    }
     @ObservationIgnored public var onChange: ((AppSettings) -> Void)?
 
     @ObservationIgnored private let store: JSONFileStore<AppSettings>?

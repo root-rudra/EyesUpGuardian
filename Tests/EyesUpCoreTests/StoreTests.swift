@@ -180,4 +180,23 @@ import Testing
             .filter { $0.contains(".corrupt-") }
         #expect(copies.count == 2)
     }
+    /// A file written by an older version is not corrupt: throwing it away would cost the user 90
+    /// days of history the first time any schema version is bumped.
+    @Test func anOlderSchemaVersionIsReadRatherThanDiscarded() throws {
+        try write(#"{"schemaVersion":1,"value":[]}"#)
+        let newerStore = JSONFileStore<[Hold]>(url: url, schemaVersion: 2)
+        guard case .loaded(let holds) = newerStore.load(now: referenceDate) else {
+            Issue.record("expected .loaded from an older file")
+            return
+        }
+        #expect(holds.isEmpty)
+        #expect(FileManager.default.fileExists(atPath: url.path))
+    }
+
+    /// A file from a *newer* version may use shapes this build doesn't understand, so it is moved
+    /// aside rather than half-read.
+    @Test func aNewerSchemaVersionIsStillMovedAside() throws {
+        try write(#"{"schemaVersion":9,"value":[]}"#)
+        assertMovedAside(store.load(now: referenceDate))
+    }
 }

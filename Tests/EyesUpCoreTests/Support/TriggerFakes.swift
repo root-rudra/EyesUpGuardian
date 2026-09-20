@@ -23,9 +23,14 @@ final class FakeConditionMonitor: ConditionMonitor {
 
     init(condition: TriggerCondition) { self.condition = condition }
 
+    /// Every real monitor reports its answer once at start (see ConditionMonitor), so the fake does
+    /// too — a fake that stays silent hides the first-report edge case.
+    var initialAnswer = false
+
     func start(_ report: @escaping @MainActor (Bool) -> Void) {
         isStarted = true
         self.report = report
+        report(initialAnswer)
     }
 
     func stop() {

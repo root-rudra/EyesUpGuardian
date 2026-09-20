@@ -300,7 +300,9 @@ The window ships in stages: Triggers and Settings in Plan 2, Overview and Proces
    - Default policy
    - Presets editor
    - Heads-up lead time
-   - Electricity rate
+   - Electricity rate, and Track energy (the 30 s tally; off means the app measures nothing
+     while no window is open)
+   - Sleep types: also keep the disk awake (`-m`), only prevent sleep on AC power (`-s`)
    - Safety cap
    - Thermal auto-release
    - Automation URL toggle

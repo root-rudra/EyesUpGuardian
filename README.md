@@ -3,7 +3,7 @@
 A native macOS menu-bar app that keeps your Mac awake. It's a safe, clickable replacement for `caffeinate` and Amphetamine.
 
 - Timers, indefinite, until a time, or until a process exits (kernel-notified, PID-reuse safe)
-- Every `caffeinate` sleep type: system (`-i`), display (`-d`), disk (`-m`), system on AC (`-s`), user-activity nudge (`-u`)
+- Every `caffeinate` sleep type: system (`-i`), display (`-d`), disk (`-m`), system on AC (`-s`), user-activity nudge (`-u`) — the last two are in Settings → Sleep types
 - A draining-ring menu-bar icon, an Ambient popover, and a heads-up notification before your Mac may sleep
 - If the app crashes, macOS releases the hold automatically, so your Mac is never stuck awake
 
@@ -27,7 +27,7 @@ The dashboard's **Overview** shows CPU (with performance and efficiency core ave
 
 You can also put live stats in the menu bar next to the timer, and pin a small floating **HUD** that stays visible over other apps.
 
-Everything is measured only while you're looking at it: close the dashboard and the popover, and the app goes back to measuring nothing.
+Everything is measured only while you're looking at it: close the dashboard and the popover, and the app goes back to measuring nothing — apart from the energy tally, which reads power draw every 30 seconds so History has something to show. Turn off **Track energy** in Settings and it measures nothing at all.
 
 **What needs no admin rights, and what isn't available:** power draw, fan speed and temperature come from the Mac's own sensors and work without a password. The per-chip power split (CPU vs GPU vs Neural Engine) is *not* included, because reading it needs a private interface this app deliberately avoids; the total is shown instead. Any reading your Mac doesn't provide shows as "—" rather than a made-up number.
 
@@ -41,7 +41,7 @@ The **History** tab shows how long your Mac was kept awake each day, what kept i
 
 ## Shortcuts
 
-- **⌃⌥⌘E** toggles keeping awake from anywhere. It needs no accessibility permission, because it uses a system hot key rather than watching your keyboard.
+- **⌃⌥⌘E** toggles keeping awake from anywhere: it stops a session you started, pauses your triggers if a trigger is what's holding the Mac awake, and otherwise starts an indefinite session. It needs no accessibility permission, because it uses a system hot key rather than watching your keyboard.
 - **⌘1–⌘5** switch dashboard tabs.
 
 ## Safety

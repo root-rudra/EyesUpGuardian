@@ -96,3 +96,8 @@ Run before every release. Each check needs a fresh `make app` build.
 - [ ] Open at login: the toggle matches System Settings → Login Items, both ways.
 - [ ] About shows the icon and version; the app icon appears in Finder.
 - [ ] `make perf` passes (default configuration, on an idle Mac); `make perf-stats` stays under 1.5% (measured 0.750% with the HUD pinned and CPU + power in the menu bar).
+- [ ] Settings → Sleep types: with "also keep the disk awake" on, a new session shows `PreventDiskIdle` in `pmset -g assertions`.
+- [ ] Settings → Track energy off: `lsof`/Activity Monitor show no sampling while no window is open, and History stops gaining energy.
+- [ ] Reset settings asks first, then restores defaults, leaving triggers and history alone.
+- [ ] With only a trigger holding the Mac awake, ⌃⌥⌘E pauses the triggers (and pressing it again resumes them).
+- [ ] With an indefinite session running, the popover offers no "+30m"; the heads-up notification's +30 min explains why instead of doing nothing.

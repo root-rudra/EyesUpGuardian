@@ -57,10 +57,22 @@ final class HeadsUpNotifier: NSObject, UNUserNotificationCenterDelegate {
         center.add(UNNotificationRequest(identifier: id, content: content, trigger: nil)) { _ in }
     }
 
+    /// Says why when it can't, instead of doing nothing: this runs from a notification button,
+    /// where there is no other way to tell the user.
+    private func extend(by seconds: TimeInterval) {
+        do {
+            try controller.extend(by: seconds, policy: controller.currentPolicy)
+        } catch let error as AwakeError {
+            postInfo(error.message, id: "extend-refused")
+        } catch {
+            postInfo("That didn't work. Open the dashboard to change this session.", id: "extend-refused")
+        }
+    }
+
     private func handle(actionID: String) {
         switch Action(rawValue: actionID) {
-        case .extend30: try? controller.extend(by: 1800, policy: controller.currentPolicy)
-        case .extend60: try? controller.extend(by: 3600, policy: controller.currentPolicy)
+        case .extend30: extend(by: 1800)
+        case .extend60: extend(by: 3600)
         case .indefinite: controller.startIndefinite(policy: controller.currentPolicy)
         case nil: break
         }

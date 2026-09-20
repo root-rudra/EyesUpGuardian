@@ -164,4 +164,35 @@ import Testing
             #expect(!readout.metricIDs.isEmpty, "\(readout) shows a stat but subscribes to nothing")
         }
     }
+    /// caffeinate -m and -s exist in the model; until Settings could reach them they were only
+    /// reachable by hand-editing holds.json, although the README promised them.
+    @Test func theDiskAndACSleepTypesReachTheSessionsTheUserStarts() {
+        let controller = AwakeController(provider: FakePowerAssertions(), clock: FakeClock(),
+                                         scheduler: FakeScheduler(), exitWatcher: FakeExitWatcher(),
+                                         inspector: FakeInspector(), holdStore: nil, headsUpLead: 300)
+        let engine = TriggerEngine(controller: controller, factory: FakeMonitorFactory(),
+                                   clock: FakeClock(), scheduler: FakeScheduler(), store: nil)
+        let safety = SafetyGuard(controller: controller, thermal: FakeThermal())
+
+        var settings = AppSettings()
+        settings.keepDiskAwake = true
+        settings.onlyOnACPower = true
+        SettingsApplier.apply(settings, controller: controller, engine: engine, safety: safety)
+        #expect(controller.currentPolicy.contains(.disk))
+        #expect(controller.currentPolicy.contains(.systemOnAC))
+
+        settings.keepDiskAwake = false
+        settings.onlyOnACPower = false
+        SettingsApplier.apply(settings, controller: controller, engine: engine, safety: safety)
+        #expect(controller.currentPolicy == .system)
+    }
+
+    @Test func energyTrackingIsOnByDefaultAndCanBeTurnedOff() {
+        #expect(AppSettings().trackEnergy)
+        var settings = AppSettings()
+        settings.trackEnergy = false
+        let encoded = try! JSONEncoder().encode(settings)
+        let decoded = try! JSONDecoder().decode(AppSettings.self, from: encoded)
+        #expect(!decoded.trackEnergy)
+    }
 }

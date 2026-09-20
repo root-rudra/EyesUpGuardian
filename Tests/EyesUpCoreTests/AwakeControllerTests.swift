@@ -461,4 +461,32 @@ import Testing
             try controller.watchProcess(pid: Int32.max - 1, policy: .system)
         }
     }
+    /// Regression: "+30m" used to fall through to startTimer, which replaces the manual session —
+    /// an indefinite session would be cut down to 30 minutes.
+    @Test func extendingAnIndefiniteSessionNeverShortensIt() {
+        let controller = makeController()
+        let started = controller.startIndefinite(policy: .system)
+        #expect(throws: AwakeError.sessionHasNoEnd) { try controller.extend(by: 1800, policy: .system) }
+        #expect(controller.holds.count == 1)
+        #expect(controller.holds.first?.id == started.id)
+        #expect(controller.holds.first?.end == .indefinite)
+    }
+
+    @Test func extendingWithNothingRunningStillStartsATimer() throws {
+        let controller = makeController()
+        try controller.extend(by: 1800, policy: .system)
+        #expect(controller.holds.count == 1)
+        #expect(controller.awakeUntil == clock.now.addingTimeInterval(1800))
+    }
+    @Test func watchingTheSamePIDTwiceKeepsOneHold() throws {
+        let identity = ProcessIdentity(pid: 4242, startTime: 99)
+        inspector.identities[4242] = identity
+        let controller = makeController()
+        let first = try controller.watchProcess(pid: 4242, policy: .system)
+        let second = try controller.watchProcess(pid: 4242, policy: [.system, .display])
+
+        #expect(controller.holds.count == 1)
+        #expect(first.id == second.id)
+        #expect(controller.holds.first?.policy == [.system, .display])
+    }
 }

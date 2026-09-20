@@ -12,8 +12,9 @@ public final class LiveProbes: MetricsProbing, @unchecked Sendable {
     private let processes: ProcessProbe
     private let assertions = AssertionProbe()
     private let gpu = GPUProbe()
-    /// Opened the first time something asks for power, fans or temperature, so the default
-    /// configuration holds no IOKit user client at all. Guarded by the same lock as sampling.
+    /// Opened the first time something asks for power, fans or temperature — so with the energy
+    /// tally off and a readout that needs no sensors, the app holds no SMC user client at all.
+    /// Guarded by the same lock as sampling.
     private var smcProbe: SMCProbe?
     private var triedSMC = false
 

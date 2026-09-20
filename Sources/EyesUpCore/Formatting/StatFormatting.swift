@@ -34,13 +34,18 @@ public enum StatFormatting {
         return String(format: "%.1f W", value)
     }
 
+    /// Beyond these a reading isn't a temperature or a fan speed, and `Int(3.4e38)` traps rather
+    /// than formats.
+    private static let temperatureRange = -100.0...200.0
+    private static let rpmRange = 0.0...30_000.0
+
     public static func celsius(_ value: Double?) -> String {
-        guard let value, value.isFinite else { return unavailable }
+        guard let value, value.isFinite, temperatureRange.contains(value) else { return unavailable }
         return "\(Int(value.rounded()))°C"
     }
 
     public static func rpm(_ value: Double?) -> String {
-        guard let value, value.isFinite, value >= 0 else { return unavailable }
+        guard let value, value.isFinite, rpmRange.contains(value) else { return unavailable }
         return "\(Int(value.rounded())) rpm"
     }
 

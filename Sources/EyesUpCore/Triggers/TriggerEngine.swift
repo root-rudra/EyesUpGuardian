@@ -158,9 +158,14 @@ public final class TriggerEngine {
 
     private func report(triggerID: UUID, met: Bool) {
         guard let trigger = triggers.first(where: { $0.id == triggerID }), trigger.isEnabled else { return }
-        guard conditionMet[triggerID] != met else { return } // only edges matter
+        let previous = conditionMet[triggerID]
+        guard previous != met else { return } // only edges matter
         conditionMet[triggerID] = met
         guard !isPaused else { return }
+        // A monitor reports its answer once at start. That first answer is the baseline, not an
+        // edge: announcing "stopped keeping your Mac awake" for a condition that was never met
+        // would greet the user at every launch.
+        guard previous != nil || met else { return }
         apply(trigger, met: met)
     }
 

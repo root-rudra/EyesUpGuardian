@@ -32,6 +32,18 @@ import Testing
         #expect(SystemAssertions.forProcess(getpid()).isEmpty)
     }
 
+    /// The sleep types Settings adds (caffeinate -m and -s) reach real IOKit assertions.
+    @Test func diskAndACSleepTypesCreateRealAssertions() {
+        let engine = AwakeEngine(provider: IOKitPowerAssertions())
+        engine.reconcile(holds: [makeHold(label: "integration", policy: [.system, .disk, .systemOnAC])])
+        let types = Set(SystemAssertions.forProcess(getpid()).map(\.type))
+        #expect(types.contains("PreventDiskIdle"))
+        #expect(types.contains("PreventSystemSleep"))
+
+        engine.releaseAll()
+        #expect(SystemAssertions.forProcess(getpid()).isEmpty)
+    }
+
     @Test func declaringUserActivityDoesNotThrowOrLeak() async throws {
         IOKitPowerAssertions().declareUserActivity(name: "EyesUpGuardian-test-nudge")
         try await Task.sleep(for: .seconds(6))

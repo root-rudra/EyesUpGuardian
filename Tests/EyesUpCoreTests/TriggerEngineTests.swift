@@ -251,4 +251,23 @@ import Testing
         engine.clearNotice()
         #expect(engine.storeNotice == nil)
     }
+    /// Regression: a monitor reports its answer once at start. A first report of `false` used to be
+    /// treated as an edge, so every launch announced "stopped keeping your Mac awake."
+    @Test func theFirstReportIsABaselineAndSaysNothing() throws {
+        let controller = makeController()
+        let engine = makeEngine(controller: controller)
+        var messages: [String] = []
+        engine.onNotify = { messages.append($0) }
+        var trigger = makeTrigger(name: "Claude running")
+        trigger.notifyOnChange = true
+        try engine.add(trigger)   // the fake reports false at start, like the real monitors
+
+        #expect(messages.isEmpty)
+        #expect(!controller.isAwake)
+
+        factory.last?.send(true)
+        factory.last?.send(false)
+        #expect(messages == ["Claude running: keeping your Mac awake.",
+                             "Claude running: stopped keeping your Mac awake."])
+    }
 }

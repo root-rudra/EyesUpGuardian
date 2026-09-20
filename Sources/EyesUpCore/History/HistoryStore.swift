@@ -5,6 +5,11 @@ import Observation
 @MainActor
 @Observable
 public final class HistoryController {
+    /// How long energy ticks may accumulate in memory before they are written. The tally runs every
+    /// 30 s for the life of the process; writing the whole file that often costs far more than the
+    /// data is worth, and every tick is re-derivable from the next one anyway.
+    public static let energyFlushInterval: TimeInterval = 300
+
     public private(set) var snapshot = HistorySnapshot()
     public private(set) var storeNotice: String?
 
@@ -13,6 +18,7 @@ public final class HistoryController {
 
     @ObservationIgnored private let store: JSONFileStore<HistorySnapshot>?
     @ObservationIgnored private let clock: any WallClock
+    @ObservationIgnored private var lastEnergyWrite: Date?
 
     public init(store: JSONFileStore<HistorySnapshot>?, clock: any WallClock = SystemClock()) {
         self.store = store
@@ -33,11 +39,13 @@ public final class HistoryController {
 
     public func record(session: Session) {
         snapshot.sessions.append(session)
+        snapshot.sessions = Array(snapshot.sessions.suffix(HistorySnapshot.maxSessions))
         persist()
     }
 
     public func record(event: SleepWakeEvent) {
         snapshot.sleepWake.append(event)
+        snapshot.sleepWake = Array(snapshot.sleepWake.suffix(HistorySnapshot.maxEvents))
         persist()
     }
 
@@ -50,7 +58,17 @@ public final class HistoryController {
             snapshot.energy[index].awakeSeconds += awakeSeconds
         } else {
             snapshot.energy.append(EnergyDay(day: day, kilowattHours: kilowattHours, awakeSeconds: awakeSeconds))
+            snapshot.energy = Array(snapshot.energy.suffix(HistorySnapshot.maxEnergyDays))
         }
+        // Batched: the running total lives in memory and reaches disk every few minutes, on the
+        // next session or sleep/wake event, and on quit.
+        guard let last = lastEnergyWrite else { persist(); return }
+        guard date.timeIntervalSince(last) >= Self.energyFlushInterval else { return }
+        persist()
+    }
+
+    /// Writes anything the tally has been holding. Called when the app quits.
+    public func flush() {
         persist()
     }
 
@@ -66,9 +84,13 @@ public final class HistoryController {
     }
 
     private func persist() {
+        lastEnergyWrite = clock.now
         guard let store else { return }
         do {
-            try store.save(snapshot.sanitized(now: clock.now))
+            // Not sanitised here: everything in `snapshot` arrived through `load` or `prune`, which
+            // sanitise, or through this class, which caps what it appends. Re-sanitising on every
+            // write means walking the whole history every 30 seconds.
+            try store.save(snapshot)
         } catch {
             storeNotice = "Couldn't save history: \(error.localizedDescription)"
         }

@@ -60,4 +60,13 @@ import Testing
         #expect(StatFormatting.rate(Double(UInt64.max)) != "")
         #expect(StatFormatting.rate(1.8e19) != "")
     }
+    /// A float SMC key can come back as 3.4e38. `Int(3.4e38)` traps, and the app promises never to
+    /// crash on a bad reading.
+    @Test func absurdSensorReadingsFormatWithoutTrapping() {
+        #expect(StatFormatting.celsius(3.4e38) == StatFormatting.unavailable)
+        #expect(StatFormatting.celsius(-500) == StatFormatting.unavailable)
+        #expect(StatFormatting.rpm(3.4e38) == StatFormatting.unavailable)
+        #expect(StatFormatting.celsius(41.6) == "42°C")
+        #expect(StatFormatting.rpm(1999.4) == "1999 rpm")
+    }
 }

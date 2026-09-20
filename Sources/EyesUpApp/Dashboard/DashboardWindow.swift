@@ -50,6 +50,7 @@ final class DashboardState {
     var processesStats: StatsViewModel?
     let processes = ProcessesState()
     let history = HistoryTabState()
+    let settings = SettingsTabState()
     var editingDraft: TriggerDraft?
     var errorMessage: String?
 }
@@ -150,7 +151,7 @@ struct DashboardView: View {
                         ProcessesTab(environment: environment, stats: stats, state: state.processes)
                     }
                 case .history: HistoryTab(environment: environment, state: state.history)
-                case .settings: SettingsTab(environment: environment)
+                case .settings: SettingsTab(environment: environment, state: state.settings)
                 }
             }
         }

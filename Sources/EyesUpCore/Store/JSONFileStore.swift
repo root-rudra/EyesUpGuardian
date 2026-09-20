@@ -9,6 +9,14 @@ public enum StoreLoadResult<Value> {
 
 extension StoreLoadResult: Sendable where Value: Sendable {}
 
+extension StoreLoadResult {
+    /// The loaded value, or nil for a missing or corrupt file.
+    public var value: Value? {
+        if case .loaded(let value) = self { return value }
+        return nil
+    }
+}
+
 /// A versioned JSON file, written atomically. Bad files are moved aside, never crashed on.
 public struct JSONFileStore<Value: Codable & Sendable>: Sendable {
     public static var maxFileSize: Int { 5 * 1024 * 1024 }
@@ -30,9 +38,12 @@ public struct JSONFileStore<Value: Codable & Sendable>: Sendable {
 
     public func load(now: Date = Date()) -> StoreLoadResult<Value> {
         guard FileManager.default.fileExists(atPath: url.path) else { return .missing }
+        // An older file is read, not discarded: every value type here decodes leniently, so a new
+        // field simply takes its default. A *newer* file may use shapes this build can't read, and
+        // a file that won't decode at all is corrupt — both are moved aside.
         guard let data = readRegularFile(),
               let envelope = try? JSONDecoder().decode(Envelope.self, from: data),
-              envelope.schemaVersion == schemaVersion else {
+              envelope.schemaVersion <= schemaVersion else {
             return .corrupt(movedTo: moveAside(now: now))
         }
         return .loaded(envelope.value)

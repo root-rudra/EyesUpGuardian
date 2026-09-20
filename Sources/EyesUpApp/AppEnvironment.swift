@@ -30,6 +30,7 @@ final class AppEnvironment {
     private var observers: [NSObjectProtocol] = []
     private var energySubscription: MetricsSubscription?
     private var energyTimer: Timer?
+    private var pruneTimer: Timer?
 
     init() {
         let inspector = LibprocInspector()
@@ -71,6 +72,7 @@ final class AppEnvironment {
             shortcut.apply(enabled: settings.globalShortcutEnabled) { [weak self] in
                 self?.toggleKeepAwake()
             }
+            applyEnergyTracking(settings.trackEnergy)
             onSettingsChanged?(settings)
         }
         controller.restore()
@@ -80,6 +82,7 @@ final class AppEnvironment {
         launchAtLogin.syncFromSystem()
         history.load()
         history.prune()
+        startDailyPrune()
         observeHolds()
         startEnergyTally()
 
@@ -104,32 +107,56 @@ final class AppEnvironment {
                                                                 object: nil, queue: .main, using: refresh))
     }
 
-    /// Sessions are recorded from the holds themselves, so every source counts the same way.
     /// What the global shortcut does: the same thing as the menu's keep-awake switch.
     func toggleKeepAwake() {
-        if controller.isAwake {
-            controller.stopAll()
-        } else {
-            _ = controller.startIndefinite(policy: controller.currentPolicy)
+        switch KeepAwakeToggle.next(holds: controller.holds, triggersPaused: engine.isPaused) {
+        case .stopManualSessions: controller.stopAll()
+        case .pauseTriggers: engine.setPause(.untilResumed)
+        case .resumeTriggers: engine.setPause(.none)
+        case .startIndefinite: _ = controller.startIndefinite(policy: controller.currentPolicy)
         }
     }
 
+    /// Re-arms itself after every change, because `withObservationTracking` fires once.
     private func observeHolds() {
+        recorder.holdsChanged(controller.holds)
         withObservationTracking {
             _ = controller.holds
         } onChange: { [weak self] in
-            Task { @MainActor in
-                guard let self else { return }
-                self.recorder.holdsChanged(self.controller.holds)
-                self.observeHolds()
-            }
+            Task { @MainActor in self?.observeHolds() }
         }
-        recorder.holdsChanged(controller.holds)
+    }
+
+    /// Turning it off must actually stop sampling: with it on, the app reads watts every 30 s even
+    /// when nothing is on screen, which also opens the SMC connection.
+    private func applyEnergyTracking(_ enabled: Bool) {
+        let running = energyTimer != nil
+        guard enabled != running else { return }
+        if enabled {
+            startEnergyTally()
+        } else {
+            history.flush()
+            energySubscription?.cancel()
+            energySubscription = nil
+            energyTimer?.invalidate()
+            energyTimer = nil
+        }
+    }
+
+    /// Spec §8: history is pruned on launch and daily. This app is meant to run for months, so
+    /// "on launch" alone would let the snapshot grow all that time.
+    private func startDailyPrune() {
+        pruneTimer = Timer(timeInterval: 86_400, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.history.prune() }
+        }
+        pruneTimer?.tolerance = 3600
+        if let pruneTimer { RunLoop.main.add(pruneTimer, forMode: .common) }
     }
 
     /// Spec §6.3: the one thing that samples while nothing is visible, at 30 s, and only when
     /// watts are actually readable.
     private func startEnergyTally() {
+        guard settings.settings.trackEnergy else { return }
         energySubscription = metrics.subscribe([.power], interval: 30)
         energyTimer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
@@ -146,8 +173,10 @@ final class AppEnvironment {
 
     func shutdown() {
         recorder.finishOpenSession()
+        history.flush()
         energySubscription?.cancel()
         energyTimer?.invalidate()
+        pruneTimer?.invalidate()
         engine.shutdown()
         safety.stop()
         controller.shutdown()

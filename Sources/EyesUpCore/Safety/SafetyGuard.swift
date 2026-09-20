@@ -42,6 +42,10 @@ public enum SettingsApplier {
         safety: SafetyGuard
     ) {
         controller.setSafetyCap(settings.safetyCapHours.map { $0 * 3600 })
+        var extra: SleepPolicy = []
+        if settings.keepDiskAwake { extra.insert(.disk) }
+        if settings.onlyOnACPower { extra.insert(.systemOnAC) }
+        controller.extraPolicy = extra
         safety.thermalAutoRelease = settings.thermalAutoRelease
         if engine.pause != settings.triggerPause { engine.setPause(settings.triggerPause) }
     }

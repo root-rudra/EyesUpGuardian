@@ -161,16 +161,24 @@ import Testing
     }
 
     @Test func buildScriptsFetchNothing() throws {
-        // A guard that only reads Sources/ would not notice `curl … | sh` in a build script.
-        var scanned = 0
-        for name in ["Makefile", "Scripts/bundle.sh", "Scripts/perf.sh"] {
-            let url = Self.packageRoot.appendingPathComponent(name)
-            guard let text = try? String(contentsOf: url, encoding: .utf8) else { continue }
-            scanned += 1
-            let fetchers = try Regex(#"\b(curl|wget|nc|ssh|scp|npm|pip|brew|git\s+clone)\b"#)
-            #expect(text.firstMatch(of: fetchers) == nil, "\(name) fetches something at build time")
+        // A guard that only reads Sources/ would not notice `curl … | sh` in a build script. Every
+        // script is enumerated rather than listed, so a script added later can't escape the scan.
+        let scripts = Self.packageRoot.appendingPathComponent("Scripts")
+        var files = try FileManager.default.contentsOfDirectory(at: scripts, includingPropertiesForKeys: nil)
+            .filter { ["sh", "swift"].contains($0.pathExtension) }
+        files.append(Self.packageRoot.appendingPathComponent("Makefile"))
+        #expect(files.count >= 5, "expected to find the build scripts, found \(files.count)")
+
+        let fetchers = try Regex(#"\b(curl|wget|nc|ssh|scp|npm|pip|brew|git\s+clone)\b"#)
+        for url in files {
+            let text = try String(contentsOf: url, encoding: .utf8)
+            // Exceptions are marked on the line that needs one, as everywhere else in this guard.
+            let checked = text.split(separator: "\n", omittingEmptySubsequences: false)
+                .filter { !$0.contains(Self.allowMarker) }
+                .joined(separator: "\n")
+            #expect(checked.firstMatch(of: fetchers) == nil,
+                    "\(url.lastPathComponent) fetches something at build time")
         }
-        #expect(scanned == 3)
     }
 
     @Test func packageHasNoDependencies() throws {

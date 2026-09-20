@@ -91,4 +91,21 @@ import Testing
         #expect(!clean.name.contains("\n"))
         #expect(!clean.name.unicodeScalars.contains { $0.properties.generalCategory == .format })
     }
+    /// Bundle IDs, process names and a display's name all reach the UI and a trigger's summary, so
+    /// they go through SafeText like the trigger's own name does.
+    @Test func everyNameFromASavedFileIsSanitised() throws {
+        let bidi = "Docker\u{202E}reversed"
+        var trigger = makeTrigger(name: "ok")
+        trigger.condition = .appRunning(bundleIDs: [bidi])
+        let cleanedApp = try #require(TriggerValidator.sanitized(trigger))
+        guard case .appRunning(let ids) = cleanedApp.condition else { Issue.record("wrong case"); return }
+        #expect(ids == ["Dockerreversed"])
+
+        trigger.condition = .displayConnected(DisplayMatch(vendor: 1, model: 2, serial: 3,
+                                                           name: String(repeating: "x", count: 500) + "\u{202E}"))
+        let cleanedDisplay = try #require(TriggerValidator.sanitized(trigger))
+        guard case .displayConnected(let match) = cleanedDisplay.condition else { Issue.record("wrong case"); return }
+        #expect(match.name.count <= TriggerValidator.maxNameLength)
+        #expect(!match.name.unicodeScalars.contains { $0.value == 0x202E })
+    }
 }

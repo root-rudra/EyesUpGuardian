@@ -205,7 +205,9 @@ struct PopoverView: View {
                 .font(.callout)
             }
             HStack(spacing: 6) {
-                if controller.awakeUntil != nil {
+                // Not `awakeUntil`: with a safety cap set, an indefinite session reports an end time
+                // it doesn't have, and there would be nothing for this button to extend.
+                if controller.hasExtendableSession {
                     Button("+30m") { run { try controller.extend(by: Defaults.extendStep, policy: controller.currentPolicy) } }
                         .buttonStyle(.glass)
                 }

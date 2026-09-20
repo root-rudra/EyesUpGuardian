@@ -8,6 +8,7 @@ public enum AwakeError: Error, Equatable, Sendable {
     case noSuchProcess
     case notYourProcess
     case ownProcess
+    case sessionHasNoEnd
 
     public var message: String {
         switch self {
@@ -17,6 +18,7 @@ public enum AwakeError: Error, Equatable, Sendable {
         case .noSuchProcess: "No running process has that ID."
         case .notYourProcess: "That process belongs to another user, so EyesUpGuardian can't watch it."
         case .ownProcess: "EyesUpGuardian can't watch itself."
+        case .sessionHasNoEnd: "This session already runs until you stop it. Change the safety cap in Settings if you need longer."
         }
     }
 }
@@ -43,7 +45,22 @@ public final class AwakeController {
     public var sessionStart: Date? { holds.map(\.createdAt).min() }
     public var displayOn: Bool { holds.contains { !$0.source.isTrigger && $0.policy.contains(.display) } }
     /// The policy "+30m" and notification actions should use for new holds.
-    public var currentPolicy: SleepPolicy { displayOn ? [.system, .display] : .system }
+    /// The sleep types chosen in Settings (caffeinate -m and -s), added to every session the user
+    /// starts. Triggers carry their own policy.
+    public var extraPolicy: SleepPolicy = []
+
+    public var currentPolicy: SleepPolicy {
+        let base: SleepPolicy = displayOn ? [.system, .display] : .system
+        return base.union(extraPolicy)
+    }
+
+    /// True when there is a session with an end time that "+30m" can actually move.
+    public var hasExtendableSession: Bool {
+        holds.contains { hold in
+            guard hold.source == .manual, case .deadline = hold.end else { return false }
+            return true
+        }
+    }
 
     @ObservationIgnored private let provider: any PowerAssertionProviding
     @ObservationIgnored private let engine: AwakeEngine
@@ -109,6 +126,13 @@ public final class AwakeController {
             // libproc refuses another user's process, which is different from there being none.
             throw ProcessControl.processExists(pid) ? AwakeError.notYourProcess : AwakeError.noSuchProcess
         }
+        // Watching the same process twice is one intent, not two: a second hold would list the
+        // process twice and share the one kqueue watch.
+        if let index = holds.firstIndex(where: { $0.end == .processExit(identity) }) {
+            holds[index].policy = policy
+            commit()
+            return holds[index]
+        }
         let name = String((inspector.name(of: pid) ?? "process").prefix(40))
         let hold = Hold(label: "PID \(pid) · \(name)", policy: policy, end: .processExit(identity), grace: grace, createdAt: clock.now)
         holds.append(hold)
@@ -130,6 +154,11 @@ public final class AwakeController {
     public func extend(by seconds: TimeInterval, policy: SleepPolicy) throws {
         guard seconds > 0, seconds <= Self.maxManualDuration else { throw AwakeError.invalidDuration }
         var extended = false
+        // An indefinite session has nothing to extend. Falling through to startTimer would replace
+        // it with a short timer, which is the opposite of what "+30m" asks for.
+        if holds.contains(where: { $0.source == .manual && $0.end == .indefinite }) {
+            throw AwakeError.sessionHasNoEnd
+        }
         // Only the user's own sessions: a link's session keeps the ceiling `apply(.extend)` gives it.
         for index in holds.indices where holds[index].source == .manual {
             guard case .deadline(let date) = holds[index].end else { continue }

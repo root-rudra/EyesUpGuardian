@@ -76,6 +76,7 @@ import Testing
         controller.record(session: session(-1))
         controller.record(event: SleepWakeEvent(at: referenceDate, kind: .slept))
         controller.addEnergy(kilowattHours: 0.25, awakeSeconds: 900, at: referenceDate)
+        controller.flush() // energy ticks are batched; quitting writes what's outstanding
 
         let reloaded = HistoryController(store: store, clock: clock)
         reloaded.load()
@@ -112,5 +113,54 @@ import Testing
         controller.load()
         #expect(controller.snapshot.sessions.isEmpty)
         #expect(controller.storeNotice != nil)
+    }
+    /// Regression: the energy tally fires every 30 s for the life of the process, and each tick
+    /// re-sanitised and rewrote the whole file — 24 ms of main-actor work and a 448 KB write per
+    /// tick once the history was full.
+    @Test func energyTicksBatchTheirWrites() throws {
+        let clock = FakeClock()
+        let store = tempStore()
+        let history = HistoryController(store: store, clock: clock)
+
+        history.addEnergy(kilowattHours: 0.001, awakeSeconds: 30, at: clock.now)
+        let afterFirst = try #require(store.load(now: clock.now).value)
+        #expect(afterFirst.energy.count == 1)
+
+        clock.advance(30)
+        history.addEnergy(kilowattHours: 0.002, awakeSeconds: 30, at: clock.now)
+        // Still in memory, not yet on disk: the file holds the first tick only.
+        #expect(history.snapshot.energy.first?.kilowattHours == 0.003)
+        #expect(try #require(store.load(now: clock.now).value).energy.first?.kilowattHours == 0.001)
+
+        clock.advance(HistoryController.energyFlushInterval)
+        history.addEnergy(kilowattHours: 0.004, awakeSeconds: 30, at: clock.now)
+        #expect(try #require(store.load(now: clock.now).value).energy.first?.kilowattHours == 0.007)
+    }
+
+    @Test func aSessionIsWrittenImmediatelyAndAnUnflushedTallyGoesWithIt() throws {
+        let clock = FakeClock()
+        let store = tempStore()
+        let history = HistoryController(store: store, clock: clock)
+        history.addEnergy(kilowattHours: 0.001, awakeSeconds: 30, at: clock.now)
+        clock.advance(30)
+        history.addEnergy(kilowattHours: 0.002, awakeSeconds: 30, at: clock.now)
+
+        history.record(session: Session(startedAt: clock.now.addingTimeInterval(-60), endedAt: clock.now,
+                                        reasons: ["Timer"], source: "manual"))
+        let saved = try #require(store.load(now: clock.now).value)
+        #expect(saved.sessions.count == 1)
+        #expect(saved.energy.first?.kilowattHours == 0.003)
+    }
+
+    /// An app left running for months must not grow in memory just because it is still up.
+    @Test func theInMemorySnapshotStaysWithinItsCaps() {
+        let clock = FakeClock()
+        let history = HistoryController(store: nil, clock: clock)
+        for index in 0..<(HistorySnapshot.maxSessions + 50) {
+            let start = clock.now.addingTimeInterval(-Double(index + 1) * 60)
+            history.record(session: Session(startedAt: start, endedAt: start.addingTimeInterval(30),
+                                            reasons: ["Timer"], source: "manual"))
+        }
+        #expect(history.snapshot.sessions.count == HistorySnapshot.maxSessions)
     }
 }

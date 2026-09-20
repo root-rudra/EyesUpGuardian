@@ -44,6 +44,9 @@ public enum TriggerValidator {
             clean.condition = .diskBusy(floored(threshold))
         case .displayConnected(let display):
             guard display.vendor != 0 || display.model != 0 || display.serial != 0 else { return nil }
+            var cleanDisplay = display
+            cleanDisplay.name = SafeText.display(display.name, limit: maxNameLength)
+            clean.condition = .displayConnected(cleanDisplay)
         case .onACPower:
             break
         }
@@ -68,9 +71,14 @@ public enum TriggerValidator {
     private static func identifiers(_ values: [String]) -> [String]? {
         var unique: [String] = []
         for value in values {
-            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty, trimmed.count <= maxIdentifierLength,
-                  !trimmed.contains(where: \.isNewline), !unique.contains(trimmed) else { continue }
+            // Too long to be a real bundle ID or process name: dropped rather than truncated,
+            // since a truncated identifier would silently match something else.
+            let raw = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard raw.count <= maxIdentifierLength else { continue }
+            // These reach a trigger's summary and the tables that list it, so they get the same
+            // treatment as the trigger's name: control and formatting characters are stripped.
+            let trimmed = SafeText.display(raw, limit: maxIdentifierLength)
+            guard !trimmed.isEmpty, !unique.contains(trimmed) else { continue }
             unique.append(trimmed)
         }
         unique = Array(unique.prefix(maxIdentifiers))

@@ -74,7 +74,8 @@ public final class SMCProbe {
             guard let value = smc.read(key) else { return false }
             return Self.isPlausibleTemperature(value)
         }
-        let fanCount = smc.read("FNum").map { Int($0) } ?? 0
+        // FNum is normally a ui8, but a float key can read back as 3.4e38, and Int() traps on that.
+        let fanCount = smc.read("FNum").map { Int(min(max($0, 0), Double(Self.maxFans))) } ?? 0
         resolvedFans = (0..<min(max(fanCount, 0), Self.maxFans)).compactMap { index in
             let rpmKey = "F\(index)Ac"
             guard smc.read(rpmKey) != nil else { return nil }
