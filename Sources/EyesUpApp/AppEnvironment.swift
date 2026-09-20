@@ -19,6 +19,7 @@ final class AppEnvironment {
     let recorder: HistoryRecorder
     let workspace: LiveWorkspaceEvents
     let launchAtLogin = LaunchAtLogin()
+    let shortcut = GlobalShortcut()
 
     /// Set by the app delegate: UI that must react to a settings change.
     var onSettingsChanged: ((AppSettings) -> Void)?
@@ -64,6 +65,9 @@ final class AppEnvironment {
             guard let self else { return }
             SettingsApplier.apply(settings, controller: controller, engine: engine, safety: safety)
             controller.setHeadsUpLead(settings.headsUpLeadMinutes * 60)
+            shortcut.apply(enabled: settings.globalShortcutEnabled) { [weak self] in
+                self?.toggleKeepAwake()
+            }
             onSettingsChanged?(settings)
         }
         controller.restore()
@@ -98,6 +102,15 @@ final class AppEnvironment {
     }
 
     /// Sessions are recorded from the holds themselves, so every source counts the same way.
+    /// What the global shortcut does: the same thing as the menu's keep-awake switch.
+    func toggleKeepAwake() {
+        if controller.isAwake {
+            controller.stopAll()
+        } else {
+            _ = controller.startIndefinite(policy: controller.currentPolicy)
+        }
+    }
+
     private func observeHolds() {
         withObservationTracking {
             _ = controller.holds

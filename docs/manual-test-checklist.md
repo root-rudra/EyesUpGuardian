@@ -73,3 +73,8 @@ Run before every release. Each check needs a fresh `make app` build.
       about 0.03% of this 32-core Mac): HUD pinned with nothing counting down 0.30%; HUD pinned while a
       timer runs ~1.1%; menu-bar stat readout ~0.4%.
 - [ ] Dashboard open: CPU under 1.5% in Activity Monitor.
+
+## Plan 4
+- [ ] Press **⌃⌥⌘E** with another app focused: the menu-bar ring fills and `pmset -g assertions | grep EyesUpGuardian` shows a hold. Press it again: the ring empties and the line goes away.
+- [ ] Turning the Settings toggle off releases the key (another app can claim it); turning it back on reclaims it. If the key is already taken at launch, Settings says so in orange.
+- [ ] ⌘1–⌘5 switch dashboard tabs in sidebar order (Overview, Triggers, Processes, History, Settings).

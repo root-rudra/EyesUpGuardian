@@ -22,6 +22,17 @@ final class DashboardState {
             }
         }
 
+        /// ⌘1–⌘5, in sidebar order.
+        var shortcut: KeyEquivalent {
+            switch self {
+            case .overview: "1"
+            case .triggers: "2"
+            case .processes: "3"
+            case .history: "4"
+            case .settings: "5"
+            }
+        }
+
         var symbol: String {
             switch self {
             case .overview: "gauge.with.dots.needle.50percent"
@@ -122,7 +133,9 @@ struct DashboardView: View {
     var body: some View {
         NavigationSplitView {
             List(DashboardState.Tab.allCases, selection: $state.tab) { tab in
-                Label(tab.title, systemImage: tab.symbol).tag(tab)
+                Label(tab.title, systemImage: tab.symbol)
+                    .tag(tab)
+                    .keyboardShortcut(tab.shortcut, modifiers: .command)
             }
             .navigationSplitViewColumnWidth(min: 150, ideal: 180, max: 240)
         } detail: {

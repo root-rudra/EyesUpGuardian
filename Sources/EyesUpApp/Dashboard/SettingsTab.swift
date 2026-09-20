@@ -109,6 +109,19 @@ struct SettingsTab: View {
                         }
                     }
 
+                    Section("Shortcut") {
+                        Toggle("Global shortcut (\(GlobalShortcut.description))", isOn: Binding(
+                            get: { settings.globalShortcutEnabled },
+                            set: { on in environment.settings.update { $0.globalShortcutEnabled = on } }
+                        ))
+                        Text("Turns keeping awake on or off from anywhere. It needs no accessibility permission — this app never reads your keystrokes.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        if let error = environment.shortcut.lastError {
+                            Label(error, systemImage: "exclamationmark.triangle")
+                                .font(.caption).foregroundStyle(.orange)
+                        }
+                    }
+
                     Section("Energy") {
                         LabeledContent("Electricity rate") {
                             TextField("none", value: Binding(
