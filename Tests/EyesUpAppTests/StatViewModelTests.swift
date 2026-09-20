@@ -57,6 +57,15 @@ import Testing
         model.stop()
     }
 
+    @Test func readoutTextCoversEveryChoice() {
+        let center = makeCenter()
+        let model = StatsViewModel(center: center, ids: [.cpu, .memory, .power, .temperature, .network], interval: 2)
+        model.start()
+        #expect(model.readoutText(for: .timerAndMemory).contains("GB"))
+        let temperature = model.readoutText(for: .timerAndTemperature)
+        #expect(temperature == StatFormatting.unavailable || temperature.contains("°C"))
+        model.stop()
+    }
 }
 
 /// Minimal probes for app-side tests: CPU, memory and uptime answer; power never does.

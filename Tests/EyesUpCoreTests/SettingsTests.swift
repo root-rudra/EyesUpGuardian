@@ -154,4 +154,14 @@ import Testing
     @Test func clickThroughDefaultsToOff() {
         #expect(!AppSettings().hudClickThrough)
     }
+
+    @Test func everyReadoutNamesTheMetricsItNeeds() {
+        #expect(MenuBarReadout.timerAndMemory.metricIDs == [.memory])
+        #expect(MenuBarReadout.timerAndTemperature.metricIDs == [.temperature])
+        #expect(MenuBarReadout.timerAndNetwork.metricIDs == [.network])
+        // Every case must name its metrics, or it would display a stat nothing sampled.
+        for readout in MenuBarReadout.allCases where readout != .iconOnly && readout != .timer {
+            #expect(!readout.metricIDs.isEmpty, "\(readout) shows a stat but subscribes to nothing")
+        }
+    }
 }

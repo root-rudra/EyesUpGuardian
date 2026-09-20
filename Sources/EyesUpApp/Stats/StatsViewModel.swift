@@ -69,9 +69,20 @@ final class StatsViewModel {
         if readout.metricIDs.contains(.cpu), let cpu = snapshot.cpu {
             parts.append(StatFormatting.percent(cpu.total))
         }
+        if readout.metricIDs.contains(.memory), let memory = snapshot.memory {
+            parts.append(StatFormatting.bytes(memory.usedBytes))
+        }
         if readout.metricIDs.contains(.power), let power = snapshot.power {
             parts.append(StatFormatting.watts(power.watts))
         }
+        if readout.metricIDs.contains(.temperature), let temperature = snapshot.temperature {
+            parts.append(StatFormatting.celsius(temperature.celsius))
+        }
+        if readout.metricIDs.contains(.network), let network = snapshot.network {
+            parts.append("↓" + StatFormatting.rate(network.inBytesPerSecond))
+        }
+        // A readout that promised a stat says so plainly when this Mac can't answer.
+        if parts.isEmpty, !readout.metricIDs.isEmpty { return StatFormatting.unavailable }
         return parts.joined(separator: " · ")
     }
 }

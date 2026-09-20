@@ -3,14 +3,18 @@ import Observation
 
 /// What the menu-bar item shows beside its ring (spec §7.1).
 public enum MenuBarReadout: String, Codable, CaseIterable, Sendable {
-    case iconOnly, timer, timerAndCPU, timerAndPower, timerCPUAndPower
+    case iconOnly, timer, timerAndCPU, timerAndMemory, timerAndPower, timerAndTemperature,
+         timerAndNetwork, timerCPUAndPower
 
     public var title: String {
         switch self {
         case .iconOnly: "Icon only"
         case .timer: "Icon and time left"
         case .timerAndCPU: "Icon, time and CPU"
+        case .timerAndMemory: "Icon, time and memory"
         case .timerAndPower: "Icon, time and power"
+        case .timerAndTemperature: "Icon, time and temperature"
+        case .timerAndNetwork: "Icon, time and network"
         case .timerCPUAndPower: "Icon, time, CPU and power"
         }
     }
@@ -20,7 +24,10 @@ public enum MenuBarReadout: String, Codable, CaseIterable, Sendable {
         switch self {
         case .iconOnly, .timer: []
         case .timerAndCPU: [.cpu]
+        case .timerAndMemory: [.memory]
         case .timerAndPower: [.power]
+        case .timerAndTemperature: [.temperature]
+        case .timerAndNetwork: [.network]
         case .timerCPUAndPower: [.cpu, .power]
         }
     }
