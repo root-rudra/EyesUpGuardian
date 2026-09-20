@@ -8,7 +8,7 @@ import SwiftUI
 @Observable
 final class DashboardState {
     enum Tab: String, CaseIterable, Identifiable, Hashable {
-        case overview, triggers, processes, settings
+        case overview, triggers, processes, history, settings
 
         var id: String { rawValue }
 
@@ -17,6 +17,7 @@ final class DashboardState {
             case .overview: "Overview"
             case .triggers: "Triggers"
             case .processes: "Processes"
+            case .history: "History"
             case .settings: "Settings"
             }
         }
@@ -26,6 +27,7 @@ final class DashboardState {
             case .overview: "gauge.with.dots.needle.50percent"
             case .triggers: "bolt.badge.clock"
             case .processes: "list.bullet.rectangle"
+            case .history: "clock.arrow.trianglehead.counterclockwise.rotate.90"
             case .settings: "gearshape"
             }
         }
@@ -36,6 +38,7 @@ final class DashboardState {
     var overviewStats: StatsViewModel?
     var processesStats: StatsViewModel?
     let processes = ProcessesState()
+    let history = HistoryTabState()
     var editingDraft: TriggerDraft?
     var errorMessage: String?
 }
@@ -106,7 +109,7 @@ final class DashboardWindowController: NSObject, NSWindowDelegate {
         switch state.tab {
         case .overview: state.overviewStats?.start()
         case .processes: state.processesStats?.start()
-        case .triggers, .settings: break
+        case .triggers, .history, .settings: break
         }
     }
 
@@ -133,6 +136,7 @@ struct DashboardView: View {
                     if let stats = state.processesStats {
                         ProcessesTab(environment: environment, stats: stats, state: state.processes)
                     }
+                case .history: HistoryTab(environment: environment, state: state.history)
                 case .settings: SettingsTab(environment: environment)
                 }
             }
