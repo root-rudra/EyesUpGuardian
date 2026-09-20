@@ -174,7 +174,7 @@ struct SettingsTab: View {
                             get: { settings.onlyOnACPower },
                             set: { on in environment.settings.update { $0.onlyOnACPower = on } }
                         ))
-                        Text("Added to every session you start yourself. Triggers keep the sleep types you gave them.")
+                        Text("Added to every session you start from the app. Triggers keep the sleep types you gave them, and automation links stay on the plain system hold.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
 

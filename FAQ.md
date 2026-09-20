@@ -81,7 +81,7 @@ and notify you when it starts and stops. You can pause them all with one switch.
 |---|---|---|
 | `-i` | prevent idle system sleep | every session |
 | `-d` | keep the display on | a toggle on each session and trigger |
-| `-m` | prevent the disk idling | Settings → Sleep types |
+| `-m` | prevent the disk idling | Settings → Sleep types (sessions you start in the app) |
 | `-s` | prevent sleep only while on AC power | Settings → Sleep types |
 | `-u` | wake the display now | "Wake display" in the popover |
 
