@@ -83,8 +83,8 @@ See [SECURITY.md](SECURITY.md) — it lists every system interface the app touch
 ## Questions, bugs and ideas
 
 - **[FAQ](FAQ.md)** — capabilities, resource use, privacy, installing without the App Store, troubleshooting
-- **Issues** — bug reports and concrete requests
-- **Discussions** — questions, ideas and feature requests to talk through first
+- **[Issues](https://github.com/root-rudra/EyesUpGuardian/issues)** — bug reports and concrete requests
+- **[Discussions](https://github.com/root-rudra/EyesUpGuardian/discussions)** — questions, ideas and feature requests to talk through first
 
 ## License
 

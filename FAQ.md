@@ -230,7 +230,7 @@ neither involves an account.
 **Build it yourself** (recommended — you get a copy signed by your own machine, which opens normally):
 
 ```bash
-git clone https://github.com/<owner>/EyesUpGuardian.git
+git clone https://github.com/root-rudra/EyesUpGuardian.git
 cd EyesUpGuardian
 make install
 open /Applications/EyesUpGuardian.app

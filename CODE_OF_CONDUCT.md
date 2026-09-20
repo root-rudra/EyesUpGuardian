@@ -19,7 +19,7 @@ sustained disruption, or publishing anyone's private information.
 
 ## Reporting
 
-If someone's behaviour is a problem, message the maintainer through GitHub (@OWNER). Reports are
+If someone's behaviour is a problem, message the maintainer through GitHub (@root-rudra). Reports are
 handled privately. The maintainer may edit, hide or delete comments, close discussions, or block
 accounts that break these rules — with an explanation where that's possible, and without one where
 explaining would make things worse.
