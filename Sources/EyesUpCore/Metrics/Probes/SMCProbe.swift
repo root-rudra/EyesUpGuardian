@@ -48,11 +48,17 @@ public final class SMCProbe {
         resolveIfNeeded()
         guard let resolved = resolvedFans, !resolved.isEmpty else { return nil }
         let readings = resolved.enumerated().compactMap { index, keys -> FanReading? in
-            guard let rpm = smc.read(keys.rpmKey), rpm.isFinite, rpm >= 0, rpm < 20_000 else { return nil }
+            guard let rpm = smc.read(keys.rpmKey), Self.isPlausibleRPM(rpm) else { return nil }
             let maximum = smc.read(keys.maxKey)
-            return FanReading(index: index, rpm: rpm, maxRPM: maximum.flatMap { $0.isFinite && $0 > 0 ? $0 : nil })
+            return FanReading(index: index, rpm: rpm,
+                              maxRPM: maximum.flatMap { Self.isPlausibleRPM($0) ? $0 : nil })
         }
         return readings.isEmpty ? nil : FanMetrics(fans: readings)
+    }
+
+    /// Hardware can report nonsense (a float key can come back as 3.4e38); the UI converts these to Int.
+    static func isPlausibleRPM(_ value: Double) -> Bool {
+        value.isFinite && value >= 0 && value < 20_000
     }
 
     private static func isPlausibleTemperature(_ value: Double) -> Bool {

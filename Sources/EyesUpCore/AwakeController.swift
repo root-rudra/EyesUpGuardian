@@ -261,7 +261,8 @@ public final class AwakeController {
             case .missing:
                 break
             case .loaded(let saved):
-                let valid = saved.compactMap { HoldRestorer.sanitized($0, now: clock.now) }
+                // Cap before validating, so a huge file costs no more work than a normal one.
+                let valid = saved.prefix(HoldRestorer.maxHolds).compactMap { HoldRestorer.sanitized($0, now: clock.now) }
                 if valid.count < saved.count {
                     storeNotice = "Some saved keep-awake sessions were invalid and were discarded."
                 }

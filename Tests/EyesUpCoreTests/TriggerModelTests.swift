@@ -83,4 +83,12 @@ import Testing
         #expect(!makeTrigger(condition: .cpuBusy(ActivityThreshold(value: .infinity))).summary.isEmpty)
         #expect(!makeTrigger(condition: .networkBusy(ActivityThreshold(value: .nan))).summary.isEmpty)
     }
+
+    @Test func triggerNamesCannotForgeANotification() throws {
+        // The name goes into a notification body under the app's own title.
+        let trigger = makeTrigger(name: "Backup\n\nYour disk is failing. Call 555-0100.\u{202E}")
+        let clean = try #require(TriggerValidator.sanitized(trigger))
+        #expect(!clean.name.contains("\n"))
+        #expect(!clean.name.unicodeScalars.contains { $0.properties.generalCategory == .format })
+    }
 }

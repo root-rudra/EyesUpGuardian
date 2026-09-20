@@ -40,4 +40,10 @@ final class WorkspaceObservation: ScheduledTask {
         onCancel?()
         onCancel = nil
     }
+
+    /// Dropping the observation removes its notification observers rather than leaking them.
+    deinit {
+        guard let onCancel else { return }
+        Task { @MainActor in onCancel() }
+    }
 }

@@ -17,7 +17,8 @@ public enum TriggerValidator {
     /// The trigger with text trimmed and unknown policy bits removed, or nil if it can't be made valid.
     public static func sanitized(_ trigger: Trigger) -> Trigger? {
         var clean = trigger
-        clean.name = String(clean.name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(maxNameLength))
+        // The name reaches notification bodies and the menu bar, so it is sanitised, not just trimmed.
+        clean.name = SafeText.display(clean.name, limit: maxNameLength)
         clean.policy = clean.policy.intersection(HoldRestorer.knownPolicy)
         guard !clean.name.isEmpty, !clean.policy.isEmpty, clean.grace.isFinite, (0...maxGrace).contains(clean.grace) else { return nil }
 

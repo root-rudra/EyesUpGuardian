@@ -19,15 +19,8 @@ public final class ProcessProbe {
         self.ownUID = ownUID
     }
 
-    /// Strips control and formatting characters (a name can contain a right-to-left override) and caps length.
     static func displayName(_ raw: String) -> String {
-        let cleaned = String(raw.unicodeScalars.filter { scalar in
-            let category = scalar.properties.generalCategory
-            return category != .control && category != .format && category != .lineSeparator
-                && category != .paragraphSeparator
-        })
-        let trimmed = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
-        return String(trimmed.prefix(maxNameLength))
+        SafeText.display(raw, limit: maxNameLength)
     }
 
     public func sample() -> [ProcessEntry]? {

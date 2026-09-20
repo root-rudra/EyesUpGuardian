@@ -4,20 +4,32 @@ EyesUpGuardian keeps your Mac awake. That is all it does, and this file lists ex
 
 ## What the app will never do
 
-- **Run commands.** There is no `Process`, `NSTask`, `posix_spawn`, `popen`, `system`, `exec*`, AppleScript or Apple Event anywhere in the app. It does not launch other apps or load code at runtime.
-- **Use the network.** No `URLSession`, no sockets, no update checks, no analytics.
-- **Ask for admin rights.** No `sudo`, no privileged helper, no `SMAppService`, no `setuid`.
-- **Depend on third-party code.** `Package.swift` has no dependencies; only Apple frameworks are linked.
-- **Touch files outside its own folder.** It reads and writes only `~/Library/Application Support/EyesUpGuardian/`.
+- **Run commands.** There is no `Process`, `NSTask`, `posix_spawn`, `popen`, `system`, `exec*`, `NSUserUnixTask` or AppleScript anywhere in the app, and it sends no Apple Events.
+- **Use the network.** No `URLSession`, no sockets, no listening ports, no DNS, no update checks, no analytics. The running app holds no network connections of any kind — you can check with `lsof`, below.
+- **Ask for admin rights.** No `sudo`, no privileged helper, no `SMAppService`, no `setuid`, no privileged XPC.
+- **Depend on third-party code.** `Package.swift` has no dependencies, no binary targets, no plugins and no unsafe flags; only Apple frameworks are linked.
+- **Write anywhere but its own folder.** Every write goes to `~/Library/Application Support/EyesUpGuardian/`, and its files are created readable only by you (`0600`, in a `0700` folder).
+- **Load code at runtime.** No `dlopen`/`dlsym` in app code. (The binary does import `dlsym`: it comes from the Swift toolchain's own OS-version check, not from this app. None of the app's object files reference it.)
 
-A test enforces the first four (`Tests/EyesUpCoreTests/SecurityGuardTests.swift`): it scans every source file for forbidden API spellings and fails the build on a match, and it checks that the package has no dependencies. You can verify the built app independently:
+**Two things it does do, deliberately, and they are the only exceptions:**
+
+- **Reveal in Finder.** The Processes tab can ask Finder to show a process's file, when you choose it from a menu. That is the single call in the codebase allowed to activate another app, and it is marked in the source with `// security-allow:` so you can find it with `grep -rn "security-allow:" Sources/`.
+- **Receive one Apple Event.** The `eyesup://` link arrives as the standard open-URL Apple Event, and macOS installs the usual quit/activate handlers for every app. The app sends none.
+
+A test enforces these (`Tests/EyesUpCoreTests/SecurityGuardTests.swift`): it scans every file in `Sources/` for forbidden API spellings — process launching, networking including `bind`/`listen`/`accept`, blind `Data(contentsOf:)`, XPC and Mach lookups, privilege escalation, runtime code loading, inbound channels — and fails the build on a match. It also checks the build scripts fetch nothing and the package declares no dependencies, binary targets, plugins or unsafe flags. Exceptions must be marked on the line that needs one, so they cannot hide. You can verify the built app independently:
 
 ```bash
 nm -u build/EyesUpGuardian.app/Contents/MacOS/EyesUpGuardian | grep -E 'posix_spawn|execv|fork|system|popen|dlopen|socket|connect|setuid|NSTask|URLSession'
 otool -L build/EyesUpGuardian.app/Contents/MacOS/EyesUpGuardian
 ```
 
-The first command should print nothing. The second should list only Apple frameworks.
+The first command should print nothing. The second should list only Apple frameworks. To confirm it holds no network connections while running:
+
+```bash
+lsof -nP -p "$(pgrep -nx EyesUpGuardian)" | grep -E 'TCP|UDP|IPv4|IPv6'
+```
+
+That prints nothing: the app has no sockets at all, not merely no listening ones.
 
 ## What it does touch
 
@@ -52,9 +64,15 @@ The app is **not** sandboxed, because the App Sandbox blocks the IOKit access th
 
 The app assumes anything it reads from disk or receives through a link is hostile.
 
-**Files.** `holds.json`, `triggers.json` and `settings.json` can be written by any process running as you. Every value is range-checked before it is used: unknown policy bits are masked off, labels and identifiers are length-limited, dates in the future are rejected, activity thresholds have floors, and the number of saved sessions (64) and triggers (64) is capped. A file that is corrupt, truncated, oversized or from a newer version is moved aside and the app starts clean with a notice. Control characters are stripped from anything that reaches an assertion name, so a tampered file cannot forge lines in `pmset -g assertions`.
+**Files.** `holds.json`, `triggers.json` and `settings.json` can be written by any process running as you. Every value is range-checked before it is used: unknown policy bits are masked off, labels and identifiers are length-limited, dates in the future are rejected, activity thresholds have floors, saved shapes the app itself cannot create are refused, and the number of saved sessions (64) and triggers (64) is capped *before* the file is validated, so a huge file costs no more work than a normal one. A file that is corrupt, truncated, oversized or from a newer version is moved aside — keeping only the newest two copies — and the app starts clean with a notice.
+
+Each file is opened directly, refusing symlinks (`O_NOFOLLOW`) and anything that is not a regular file, and the size is checked on the descriptor actually read. Without that, a symlink planted in place of one of these files would report its own tiny size and then feed the app whatever it pointed at.
+
+Control **and** formatting characters — bidirectional overrides, zero-width joiners, soft hyphens — are stripped from every name that reaches an assertion name, a notification, the menu bar or the process table. A tampered file therefore cannot forge a line in `pmset -g assertions`, reverse how a name reads, or put a fake message in a notification that appears to come from this app.
 
 **Links.** The `eyesup://` scheme is **off by default**. When you switch it on, a link can do exactly three things: start, extend or stop *its own* session. It can never cancel a session you started by hand, never run longer than 24 hours or your safety cap (whichever is lower), and never reach anything else. Links with a path, credentials, a port, a fragment, duplicate or unexpected parameters, non-ASCII digits or whitespace are rejected.
+
+**Quitting a process.** Quit and Force Quit are offered only for processes you own. The process's identity (its PID *and* its start time, captured when the row was sampled) is re-checked immediately before the signal, so a PID reused between the click and the signal is refused rather than killed. A microsecond-wide window remains between that check and `kill(2)` itself, which macOS offers no way to close.
 
 **What this does not protect against.** A process running as you can already keep the Mac awake by itself (for example by running `caffeinate`), so the app cannot be a boundary against code that is already running as you. What it does guarantee is that EyesUpGuardian itself never becomes a way to do more than that.
 

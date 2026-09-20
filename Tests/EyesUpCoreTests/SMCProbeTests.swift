@@ -61,4 +61,12 @@ import Testing
         #expect(fans?.fans.first?.maxRPM == 3625)
         #expect(fans?.fans.last?.maxRPM == nil)
     }
+
+    @Test func absurdFanMaximumsAreIgnored() {
+        // A misbehaving SMC can return 3.4e38 for a float key; Int(that) would trap in the UI.
+        let smc = FakeSMC(values: ["FNum": 1, "F0Ac": 1200, "F0Mx": 3.4e38])
+        let fans = SMCProbe(smc: smc).fans()
+        #expect(fans?.fans.first?.rpm == 1200)
+        #expect(fans?.fans.first?.maxRPM == nil)
+    }
 }

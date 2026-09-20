@@ -27,6 +27,14 @@ public enum HoldRestorer {
         guard hold.createdAt.timeIntervalSince(now) <= maxClockSkew else { return nil }
         if let grace = hold.grace, !(0...maxGrace).contains(grace) { return nil }
         if let deadline = hold.effectiveDeadline, deadline.timeIntervalSince(now) > maxDuration + maxGrace { return nil }
+
+        // A link's session always has an end and never outlives the link cap, so a saved one that
+        // breaks either rule did not come from this app.
+        if hold.source == .automation {
+            guard case .deadline(let deadline) = hold.end else { return nil }
+            let ceiling = hold.createdAt.addingTimeInterval(AutomationParser.maxDuration)
+            if deadline > ceiling { hold.end = .deadline(ceiling) }
+        }
         return hold
     }
 

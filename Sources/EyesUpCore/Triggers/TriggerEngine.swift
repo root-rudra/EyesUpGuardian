@@ -59,8 +59,9 @@ public final class TriggerEngine {
             case .missing:
                 break
             case .loaded(let saved):
-                let valid = saved.compactMap(TriggerValidator.sanitized)
-                triggers = Array(valid.prefix(TriggerValidator.maxTriggers))
+                // Cap before validating, so a huge file costs no more work than a normal one.
+                let valid = saved.prefix(TriggerValidator.maxTriggers).compactMap(TriggerValidator.sanitized)
+                triggers = Array(valid)
                 if triggers.count < saved.count {
                     storeNotice = "Some saved triggers were invalid or beyond the limit, and were discarded."
                 }

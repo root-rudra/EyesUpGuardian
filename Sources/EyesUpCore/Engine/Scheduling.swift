@@ -37,7 +37,11 @@ public final class DispatchTimerScheduler: TimerScheduling {
 }
 
 final class DispatchSourceTask: ScheduledTask {
-    private let source: any DispatchSourceProtocol
+    // Dispatch sources are safe to cancel from any thread, which is what the deinit below needs.
+    nonisolated(unsafe) private let source: any DispatchSourceProtocol
     init(_ source: any DispatchSourceProtocol) { self.source = source }
     func cancel() { source.cancel() }
+
+    /// A dropped task still cancels its source, so neither the source nor its closure leaks.
+    deinit { source.cancel() }
 }

@@ -35,10 +35,13 @@ public struct LiveSystemCounters: SystemCounters {
 
     public func cpuTicks() -> (busy: UInt64, total: UInt64)? {
         var info = host_cpu_load_info()
+        // mach_host_self() hands out a new send right each call; it has to be given back.
+        let host = mach_host_self()
+        defer { mach_port_deallocate(mach_task_self_, host) }
         var count = mach_msg_type_number_t(MemoryLayout<host_cpu_load_info>.stride / MemoryLayout<integer_t>.stride)
         let result = withUnsafeMutablePointer(to: &info) { pointer in
             pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, $0, &count)
+                host_statistics(host, HOST_CPU_LOAD_INFO, $0, &count)
             }
         }
         guard result == KERN_SUCCESS else { return nil }
@@ -235,6 +238,8 @@ final class CallbackObservation: ScheduledTask {
     /// to a freed box.
     deinit {
         guard let onCancel else { return }
-        MainActor.assumeIsolated { onCancel() }
+        // A deinit is not main-actor isolated, so assumeIsolated here would trap if the last
+        // reference were dropped off the main thread. Hop instead.
+        Task { @MainActor in onCancel() }
     }
 }

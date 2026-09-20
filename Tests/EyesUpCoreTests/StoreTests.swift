@@ -114,4 +114,61 @@ import Testing
         let restored = HoldRestorer.restorable(many, now: referenceDate, inspector: FakeInspector())
         #expect(restored.count == HoldRestorer.maxHolds)
     }
+
+    // MARK: Hostile files (security audit)
+
+    @Test func aSymlinkIsNeverFollowed() throws {
+        // A symlink reports its own tiny size to stat, so a size check alone lets an attacker
+        // point the store at any file the user can read — or at a FIFO, which hangs the read.
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let secret = directory.appendingPathComponent("secret.txt")
+        try Data(String(repeating: "S", count: 5000).utf8).write(to: secret)
+        try FileManager.default.createSymbolicLink(at: url, withDestinationURL: secret)
+
+        let result = store.load(now: referenceDate)
+        guard case .corrupt = result else {
+            Issue.record("a symlink must be refused, got \(result)")
+            return
+        }
+        // The target itself must be untouched.
+        #expect(try Data(contentsOf: secret).count == 5000)
+    }
+
+    @Test func aDirectoryInPlaceOfTheFileIsRefused() throws {
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        guard case .corrupt = store.load(now: referenceDate) else {
+            Issue.record("a directory must be refused")
+            return
+        }
+    }
+
+    @Test func savedFilesAreReadableOnlyByTheUser() throws {
+        try store.save([makeHold()])
+        let fileMode = try #require(FileManager.default.attributesOfItem(atPath: url.path)[.posixPermissions] as? NSNumber)
+        let directoryMode = try #require(FileManager.default.attributesOfItem(atPath: directory.path)[.posixPermissions] as? NSNumber)
+        #expect(fileMode.int16Value == 0o600)
+        #expect(directoryMode.int16Value == 0o700)
+    }
+
+    @Test func corruptFilesDoNotPileUpForever() throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        for index in 0..<6 {
+            try Data("nonsense".utf8).write(to: url)
+            _ = store.load(now: referenceDate.addingTimeInterval(Double(index) * 60))
+        }
+        let leftovers = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+            .filter { $0.contains(".corrupt-") }
+        #expect(leftovers.count <= JSONFileStore<[Hold]>.keptCorruptFiles)
+    }
+
+    @Test func restoreRefusesShapesTheAppCannotCreate() {
+        // A link's session always has an end; a saved "Automation" hold with none did not come from us.
+        let endless = makeHold(end: .indefinite, source: .automation)
+        #expect(HoldRestorer.sanitized(endless, now: referenceDate) == nil)
+
+        // And a link's session can never run longer than the link cap.
+        let tooLong = makeHold(end: .deadline(referenceDate.addingTimeInterval(72 * 3600)), source: .automation)
+        let clamped = HoldRestorer.sanitized(tooLong, now: referenceDate)
+        #expect(clamped?.effectiveDeadline == referenceDate.addingTimeInterval(AutomationParser.maxDuration))
+    }
 }

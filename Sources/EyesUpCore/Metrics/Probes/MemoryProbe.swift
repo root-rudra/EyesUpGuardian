@@ -7,10 +7,13 @@ public struct MemoryProbe {
 
     public func sample() -> MemoryMetrics? {
         var statistics = vm_statistics64()
+        // mach_host_self() hands out a new send right each call; it has to be given back.
+        let host = mach_host_self()
+        defer { mach_port_deallocate(mach_task_self_, host) }
         var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64>.stride / MemoryLayout<integer_t>.stride)
         let result = withUnsafeMutablePointer(to: &statistics) { pointer in
             pointer.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
-                host_statistics64(mach_host_self(), HOST_VM_INFO64, $0, &count)
+                host_statistics64(host, HOST_VM_INFO64, $0, &count)
             }
         }
         guard result == KERN_SUCCESS else { return nil }

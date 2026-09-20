@@ -54,4 +54,10 @@ import Testing
         #expect(ThermalLevel.serious.title == "Hot")
         #expect(ThermalLevel.critical.title == "Too hot")
     }
+
+    @Test func rateSurvivesValuesTooLargeForAnInteger() {
+        #expect(StatFormatting.rate(1e30) != "")
+        #expect(StatFormatting.rate(Double(UInt64.max)) != "")
+        #expect(StatFormatting.rate(1.8e19) != "")
+    }
 }

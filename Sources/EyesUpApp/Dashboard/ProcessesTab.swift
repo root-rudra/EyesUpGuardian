@@ -165,7 +165,7 @@ struct ProcessesTab: View {
             state.message = "That process's location isn't readable."
             return
         }
-        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) // security-allow: reveal in Finder, user-initiated, shows a file and launches nothing else
     }
 
     private func confirmQuit() {

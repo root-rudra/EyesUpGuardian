@@ -19,7 +19,9 @@ public enum StatFormatting {
     public static func rate(_ bytesPerSecond: Double?) -> String {
         guard let value = bytesPerSecond, value.isFinite, value >= 0 else { return unavailable }
         guard value >= 1000 else { return "\(Int(value)) B/s" }
-        return bytes(UInt64(min(value, Double(UInt64.max)))) + "/s"
+        // Double(UInt64.max) rounds UP past UInt64.max, so it is not a usable clamp; 2^53 is the
+        // largest integer a Double represents exactly.
+        return bytes(UInt64(min(value, 9_007_199_254_740_992))) + "/s"
     }
 
     public static func percent(_ value: Double?) -> String {
@@ -58,5 +60,26 @@ public enum StatFormatting {
         guard let seconds, seconds.isFinite, seconds >= 0 else { return unavailable }
         guard seconds >= 60 else { return "just now" }
         return TimeFormatting.duration(seconds)
+    }
+}
+
+/// Text that came from outside the app — a saved file, another process's name — before it is shown
+/// anywhere a person might act on it.
+public enum SafeText {
+    /// Drops control and formatting characters (bidi overrides, zero-width joiners, soft hyphens) and
+    /// turns exotic whitespace into plain spaces, so a name cannot forge a line, reverse how it reads,
+    /// or hide characters in the middle of it.
+    public static func display(_ raw: String, limit: Int? = nil) -> String {
+        let cleaned = String(String.UnicodeScalarView(raw.unicodeScalars.compactMap { scalar in
+            switch scalar.properties.generalCategory {
+            case .control, .format, .lineSeparator, .paragraphSeparator, .privateUse, .unassigned, .surrogate:
+                return nil
+            default:
+                return scalar.properties.isWhitespace && !scalar.isASCII ? " " : scalar
+            }
+        }))
+        let collapsed = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let limit else { return collapsed }
+        return String(collapsed.prefix(limit))
     }
 }

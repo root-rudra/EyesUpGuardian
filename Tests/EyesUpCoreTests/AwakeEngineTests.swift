@@ -93,4 +93,12 @@ import Testing
         #expect(!name.contains("\r"))
         #expect(name.unicodeScalars.allSatisfy { $0.properties.generalCategory != .control })
     }
+
+    @Test func assertionNamesCannotSpoofWithInvisibleCharacters() {
+        // A right-to-left override would reverse how the name reads in `pmset -g assertions`.
+        let hold = makeHold(label: "Focus\u{202E}sutatS metsyS\u{200B}\u{00AD}")
+        let name = AwakeEngine.assertionName(for: [hold])
+        #expect(!name.unicodeScalars.contains { $0.properties.generalCategory == .format })
+        #expect(name.allSatisfy { $0.isASCII })
+    }
 }
