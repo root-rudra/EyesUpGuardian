@@ -92,14 +92,19 @@ public struct NetworkMetrics: Equatable, Sendable {
 public struct ProcessEntry: Identifiable, Equatable, Sendable {
     public var id: Int32 { pid }
     public var pid: Int32
+    /// PID *and* start time, captured when this row was sampled. Acting on a row later must use this,
+    /// or a PID recycled in the meantime would be treated as the process the user chose.
+    public var identity: ProcessIdentity
     public var name: String
     public var cpuPercent: Double
     public var memoryBytes: UInt64
     public var threads: Int
     public var isOwn: Bool
 
-    public init(pid: Int32, name: String, cpuPercent: Double, memoryBytes: UInt64, threads: Int, isOwn: Bool) {
+    public init(pid: Int32, identity: ProcessIdentity, name: String, cpuPercent: Double,
+                memoryBytes: UInt64, threads: Int, isOwn: Bool) {
         self.pid = pid
+        self.identity = identity
         self.name = name
         self.cpuPercent = cpuPercent
         self.memoryBytes = memoryBytes

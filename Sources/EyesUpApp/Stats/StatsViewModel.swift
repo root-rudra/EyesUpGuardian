@@ -43,7 +43,8 @@ final class StatsViewModel {
     /// The popover's four tiles: CPU, memory, power (temperature when watts aren't readable), uptime.
     var tiles: [StatTileModel] {
         let snapshot = center.snapshot
-        let memoryPercent = snapshot.memory.map { $0.totalBytes > 0 ? Double($0.usedBytes) / Double($0.totalBytes) * 100 : 0 }
+        // A zero total means the reading failed; showing 0% would be a fake number.
+        let memoryPercent = snapshot.memory.flatMap { $0.totalBytes > 0 ? Double($0.usedBytes) / Double($0.totalBytes) * 100 : nil }
         let powerTile: StatTileModel = if snapshot.power != nil || snapshot.temperature == nil {
             StatTileModel(id: "power", title: "Power", value: StatFormatting.watts(snapshot.power?.watts),
                           detail: "system", symbol: "bolt")

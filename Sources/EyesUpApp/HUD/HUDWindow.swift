@@ -2,8 +2,8 @@ import AppKit
 import EyesUpCore
 import SwiftUI
 
-/// The pinnable mini panel (spec §7.4): countdown plus a compact stat line, on every Space,
-/// faded until the mouse is over it.
+/// The pinnable mini panel (spec §7.4): countdown plus a compact stat line, on every Space.
+/// Corner snapping, the hover fade and click-through are not implemented yet (see Plan 4).
 struct HUDView: View {
     let controller: AwakeController
     @Bindable var stats: StatsViewModel

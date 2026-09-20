@@ -160,10 +160,11 @@ final class FakeSMC: SMCReading, @unchecked Sendable {
 
 final class FakeSignaller: ProcessSignalling, @unchecked Sendable {
     private(set) var sent: [(Int32, Int32)] = []
+    var succeeds = true
 
     func send(_ signal: Int32, to pid: Int32) -> Bool {
         sent.append((signal, pid))
-        return true
+        return succeeds
     }
 }
 

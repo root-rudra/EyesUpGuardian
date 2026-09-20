@@ -38,7 +38,8 @@ import Testing
         snapshot.system = SystemMetrics(bootTime: referenceDate, loadAverage: (1, 1, 1), idleSeconds: 0, thermal: .nominal)
         snapshot.storage = StorageMetrics(freeBytes: 1, totalBytes: 2, readBytesPerSecond: nil, writeBytesPerSecond: nil)
         snapshot.network = NetworkMetrics(inBytesPerSecond: nil, outBytesPerSecond: nil)
-        snapshot.processes = [ProcessEntry(pid: 1, name: "a", cpuPercent: 0, memoryBytes: 0, threads: 1, isOwn: false)]
+        snapshot.processes = [ProcessEntry(pid: 1, identity: ProcessIdentity(pid: 1, startTime: 1), name: "a",
+                                           cpuPercent: 0, memoryBytes: 0, threads: 1, isOwn: false)]
         snapshot.power = PowerMetrics(watts: 1)
         snapshot.fans = FanMetrics(fans: [FanReading(index: 0, rpm: 1000, maxRPM: 3000)])
         snapshot.temperature = TemperatureMetrics(celsius: 40, sensorCount: 3)

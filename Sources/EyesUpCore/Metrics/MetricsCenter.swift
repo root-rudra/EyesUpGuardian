@@ -20,8 +20,13 @@ public final class MetricsSubscription {
         center = nil
     }
 
-    // No deinit: `deinit` is not main-actor isolated, and hopping there from one would either trap or
-    // race. Every surface cancels explicitly in `onDisappear`, and Task 8's tests pin that.
+    /// Backstop for a surface that goes away without cancelling: hopping to the main actor through a
+    /// Task is safe from a non-isolated deinit (unlike assumeIsolated, which would trap).
+    deinit {
+        guard let center else { return }
+        let id = id
+        Task { @MainActor in center.remove(subscriptionID: id) }
+    }
 }
 
 /// Samples the union of what's subscribed, at the fastest interval asked for, and nothing at all

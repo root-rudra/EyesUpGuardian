@@ -44,6 +44,12 @@ public final class CPUProbe {
         )
     }
 
+    /// Tick counters are unsigned 32-bit, but Mach hands them over as Int32: past ~250 days of uptime
+    /// they read negative, and converting straight to UInt64 would trap and kill the app.
+    static func unsignedTick(_ raw: Int32) -> UInt64 {
+        UInt64(UInt32(bitPattern: raw))
+    }
+
     private static func coreTicks() -> [(busy: UInt64, total: UInt64)]? {
         var count: natural_t = 0
         var info: processor_info_array_t?
@@ -58,10 +64,10 @@ public final class CPUProbe {
         ticks.reserveCapacity(Int(count))
         for core in 0..<Int(count) {
             let base = core * Int(CPU_STATE_MAX)
-            let user = UInt64(info[base + Int(CPU_STATE_USER)])
-            let system = UInt64(info[base + Int(CPU_STATE_SYSTEM)])
-            let idle = UInt64(info[base + Int(CPU_STATE_IDLE)])
-            let nice = UInt64(info[base + Int(CPU_STATE_NICE)])
+            let user = unsignedTick(info[base + Int(CPU_STATE_USER)])
+            let system = unsignedTick(info[base + Int(CPU_STATE_SYSTEM)])
+            let idle = unsignedTick(info[base + Int(CPU_STATE_IDLE)])
+            let nice = unsignedTick(info[base + Int(CPU_STATE_NICE)])
             ticks.append((busy: user + system + nice, total: user + system + nice + idle))
         }
         return ticks

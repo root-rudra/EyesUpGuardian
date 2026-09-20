@@ -42,13 +42,14 @@ final class DashboardState {
 
 /// Owns the single dashboard window. Reused if it's already open.
 @MainActor
-final class DashboardWindowController {
+final class DashboardWindowController: NSObject, NSWindowDelegate {
     private let environment: AppEnvironment
     private let state = DashboardState()
     private var window: NSWindow?
 
     init(environment: AppEnvironment) {
         self.environment = environment
+        super.init()
     }
 
     func show() {
@@ -75,12 +76,40 @@ final class DashboardWindowController {
         )
         window.title = "EyesUpGuardian"
         window.isReleasedWhenClosed = false
+        window.delegate = self
         window.center()
         window.contentView = NSHostingView(rootView: DashboardView(environment: environment, state: state))
+        window.delegate = self
         window.makeKeyAndOrderFront(nil)
         NSApp.activate()
         self.window = window
     }
+    // Spec §6.1: a window nobody can see must not sample. SwiftUI's onDisappear covers neither
+    // miniaturizing nor being fully covered by another window, so the window itself reports both.
+    func windowWillClose(_ notification: Notification) { stopSampling() }
+
+    func windowDidMiniaturize(_ notification: Notification) { stopSampling() }
+
+    func windowDidDeminiaturize(_ notification: Notification) { startVisibleTab() }
+
+    func windowDidChangeOcclusionState(_ notification: Notification) {
+        guard let window else { return }
+        window.occlusionState.contains(.visible) ? startVisibleTab() : stopSampling()
+    }
+
+    private func stopSampling() {
+        state.overviewStats?.stop()
+        state.processesStats?.stop()
+    }
+
+    private func startVisibleTab() {
+        switch state.tab {
+        case .overview: state.overviewStats?.start()
+        case .processes: state.processesStats?.start()
+        case .triggers, .settings: break
+        }
+    }
+
 }
 
 struct DashboardView: View {

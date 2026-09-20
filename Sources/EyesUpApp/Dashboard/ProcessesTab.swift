@@ -171,13 +171,10 @@ struct ProcessesTab: View {
     private func confirmQuit() {
         guard let entry = state.confirmingQuit else { return }
         state.confirmingQuit = nil
-        let inspector = LibprocInspector()
-        guard let identity = inspector.identity(of: entry.pid) else {
-            state.message = ProcessControlError.gone.message
-            return
-        }
         do {
-            try ProcessControl().quit(identity, force: state.forceQuit)
+            // The identity captured when the row was sampled: if this PID has been recycled since,
+            // ProcessControl refuses rather than signalling whatever holds the number now.
+            try ProcessControl().quit(entry.identity, force: state.forceQuit)
             state.message = "\(state.forceQuit ? "Force quit" : "Asked to quit"): \(entry.name)."
         } catch let error as ProcessControlError {
             state.message = error.message

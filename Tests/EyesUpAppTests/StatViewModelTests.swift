@@ -49,6 +49,14 @@ import Testing
         #expect(model.readoutText(for: .timer) == "")
         model.stop()
     }
+    @Test func unreadableMemoryShowsADashNotZero() {
+        let center = MetricsCenter(probes: ZeroMemoryProbes(), executor: InlineExecutor(), scheduler: DispatchTimerScheduler())
+        let model = StatsViewModel(center: center, ids: [.memory], interval: 1)
+        model.start()
+        #expect(model.tiles[1].value == StatFormatting.unavailable)
+        model.stop()
+    }
+
 }
 
 /// Minimal probes for app-side tests: CPU, memory and uptime answer; power never does.
@@ -65,6 +73,18 @@ final class StubProbes: MetricsProbing, @unchecked Sendable {
             snapshot.system = SystemMetrics(bootTime: Date().addingTimeInterval(-90_000), loadAverage: (1, 1, 1),
                                             idleSeconds: 3, thermal: .nominal)
         }
+        return snapshot
+    }
+
+    func resetBaselines() {}
+}
+
+/// Reports memory with a zero total, as a Mac that can't answer would.
+final class ZeroMemoryProbes: MetricsProbing, @unchecked Sendable {
+    func sample(_ ids: Set<MetricID>) -> MetricsSnapshot {
+        var snapshot = MetricsSnapshot()
+        snapshot.memory = MemoryMetrics(usedBytes: 0, appBytes: 0, wiredBytes: 0, compressedBytes: 0,
+                                        totalBytes: 0, swapUsedBytes: 0, pressure: .normal)
         return snapshot
     }
 

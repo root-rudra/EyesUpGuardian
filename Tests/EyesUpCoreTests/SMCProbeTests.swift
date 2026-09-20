@@ -3,7 +3,7 @@ import Testing
 @testable import EyesUpCore
 
 @Suite struct SMCProbeTests {
-    @Test func gpuUtilizationIsAPercentage() throws {
+    @Test(.integration) func gpuUtilizationIsAPercentage() throws {
         let metrics = try #require(GPUProbe().sample())
         #expect(metrics.utilization >= 0 && metrics.utilization <= 100)
     }

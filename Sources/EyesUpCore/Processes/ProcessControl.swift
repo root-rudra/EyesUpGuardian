@@ -5,12 +5,14 @@ public enum ProcessControlError: Error, Equatable, Sendable {
     case notYours
     case gone
     case recycled
+    case signalRefused
 
     public var message: String {
         switch self {
         case .notYours: "That process belongs to another user, so EyesUpGuardian can't quit it."
         case .gone: "That process has already ended."
         case .recycled: "That process ended and its ID now belongs to something else, so nothing was quit."
+        case .signalRefused: "macOS refused to quit that process."
         }
     }
 }
@@ -49,6 +51,8 @@ public struct ProcessControl {
         guard let current = inspector.identity(of: identity.pid) else { throw ProcessControlError.gone }
         guard current == identity else { throw ProcessControlError.recycled }
         guard let uid = inspector.ownerUID(of: identity.pid), uid == ownUID else { throw ProcessControlError.notYours }
-        _ = signaller.send(force ? SIGKILL : SIGTERM, to: identity.pid)
+        guard signaller.send(force ? SIGKILL : SIGTERM, to: identity.pid) else {
+            throw ProcessControlError.signalRefused
+        }
     }
 }

@@ -17,7 +17,7 @@ public struct AssertionProbe {
         let inspector = LibprocInspector()
         var seen: Set<OtherAssertion> = []
         for assertion in SystemAssertions.all() where assertion.pid != ownPID && relevant.contains(assertion.type) {
-            let name = inspector.name(of: assertion.pid) ?? "process \(assertion.pid)"
+            let name = ProcessProbe.displayName(inspector.name(of: assertion.pid) ?? "process \(assertion.pid)")
             seen.insert(OtherAssertion(processName: name, type: assertion.type))
         }
         return Array(seen).sorted { $0.processName.localizedCaseInsensitiveCompare($1.processName) == .orderedAscending }
