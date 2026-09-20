@@ -1,4 +1,4 @@
-.PHONY: app test test-integration perf install run clean icon
+.PHONY: app test test-integration perf perf-stats release install run clean icon
 
 # Load Swift Testing's macro plugin explicitly. With only the Command Line Tools installed, SwiftPM's
 # build system intermittently omits it on incremental builds ("plugin for module 'TestingMacros' not found").
@@ -33,3 +33,10 @@ icon:
 	swift Scripts/make-icon.swift build/AppIcon.iconset
 	iconutil -c icns build/AppIcon.iconset -o Sources/EyesUpApp/Resources/AppIcon.icns
 	@echo "Wrote Sources/EyesUpApp/Resources/AppIcon.icns"
+
+release:
+	Scripts/release.sh
+
+perf-stats:
+	@echo "Measuring with the stats readout and HUD on (visible-surface budget, 1.5%)"
+	Scripts/perf-stats.sh

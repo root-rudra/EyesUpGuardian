@@ -35,6 +35,15 @@ Everything is measured only while you're looking at it: close the dashboard and 
 
 **Automation link** (off by default): once enabled, scripts can run `open "eyesup://start?for=2h"`, `eyesup://extend?by=30m` and `eyesup://stop`. Links can only touch their own session, never longer than 24 hours.
 
+## History and energy
+
+The **History** tab shows how long your Mac was kept awake each day, what kept it awake, how many sessions there were, and the energy drawn. Set an electricity rate in Settings and it shows what that cost; leave it empty and it shows kilowatt-hours only, never a made-up number. The sleep/wake log records when your Mac actually slept.
+
+## Shortcuts
+
+- **⌃⌥⌘E** toggles keeping awake from anywhere. It needs no accessibility permission, because it uses a system hot key rather than watching your keyboard.
+- **⌘1–⌘5** switch dashboard tabs.
+
 ## Safety
 
 EyesUpGuardian never runs shell commands, never asks for admin rights, never touches the network, and has zero third-party dependencies. It talks to macOS power management directly (the same IOKit interface `caffeinate` uses). A test fails the build if forbidden APIs ever appear in the source. You can inspect what it's doing at any time:
@@ -51,9 +60,15 @@ Requires macOS 26 and the Xcode Command Line Tools (`xcode-select --install`). F
 make app       # builds build/EyesUpGuardian.app
 make install   # copies it to /Applications
 make test      # unit tests
+make perf      # idle CPU and memory check (run it on an otherwise idle Mac)
+make release   # builds build/EyesUpGuardian-<version>.dmg
 ```
 
-The app is ad-hoc signed. On first launch of a downloaded build, right-click the app → Open.
+The app is ad-hoc signed. On first launch of a downloaded build, right-click the app → Open; a copy you built yourself opens normally. To have it start with your Mac, turn on **Open EyesUpGuardian at login** in Settings.
+
+## Verifying the claims yourself
+
+See [SECURITY.md](SECURITY.md) — it lists every system interface the app touches, and the commands to check that it holds no network connections, links no third-party code, and keeps nothing outside its own folder. [CONTRIBUTING.md](CONTRIBUTING.md) has the rules the build enforces.
 
 ## License
 

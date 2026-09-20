@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    # The app targets macOS 26, so it needs a runner with that SDK.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show toolchain
+        run: swift --version && sw_vers
+      - name: Unit tests
+        run: make test
+      - name: Build the app
+        run: make app
+      - name: Check the bundle is signed with the hardened runtime
+        run: codesign -dv --verbose=2 build/EyesUpGuardian.app 2>&1 | grep -q 'flags=.*runtime'

@@ -83,3 +83,16 @@ Run before every release. Each check needs a fresh `make app` build.
 - [ ] With a timer running, the HUD's ring drains in step with the menu-bar one.
 - [ ] Settings → "Let clicks pass through it": clicks land on the window behind the HUD.
 - [ ] Right-clicking the menu-bar icon while the HUD is pinned reads **Unpin HUD**.
+
+## History, settings and shortcuts (Plan 4)
+- [ ] A finished session appears in History with the right duration and reasons.
+- [ ] Quitting while awake still records the session.
+- [ ] The per-day chart matches what you did; switching 7/30 days changes it.
+- [ ] With an electricity rate set, History shows money; with it empty, kWh only.
+- [ ] Sleep and wake are logged when the Mac actually sleeps.
+- [ ] Clear history empties the tab and the file.
+- [ ] Preset toggles in Settings change the popover's buttons immediately.
+- [ ] Export settings writes a file; Import restores it; importing rubbish is refused and changes nothing.
+- [ ] Open at login: the toggle matches System Settings → Login Items, both ways.
+- [ ] About shows the icon and version; the app icon appears in Finder.
+- [ ] `make perf` passes (default configuration, on an idle Mac); `make perf-stats` stays under 1.5% (measured 0.750% with the HUD pinned and CPU + power in the menu bar).

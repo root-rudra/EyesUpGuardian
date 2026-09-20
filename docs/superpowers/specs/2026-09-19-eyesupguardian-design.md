@@ -68,7 +68,7 @@ EyesUpGuardian/
 3. **No per-second background tick.** Timers wake only at their deadlines. Live countdowns are drawn only while a window is visible (SwiftUI `TimelineView`).
 4. **Bounded memory.** Chart histories are fixed-size ring buffers (300 samples per stat). History on disk is capped (§8).
 5. **Single process.** No helpers, daemons, XPC services or child processes.
-6. **Targets:** idle CPU < 0.1% (60 s average), idle memory footprint ≤ 30 MB (`phys_footprint`; RSS is not used because it counts shared system frameworks, about 75 MB even for an empty SwiftUI app), and dashboard-open CPU < 1.5%. **The idle target describes the app at rest in its default configuration** (menu-bar icon and time left, no window, no HUD), which `make perf` enforces and which measures 0.000%. Visible, user-requested displays fall under the 1.5% target instead: measured on the reference Mac, the menu-bar stat readout costs ~0.4% of one core and a pinned HUD 0.30% idle (~1.1% while counting down), because writing changing text into the menu bar or a floating panel forces a re-layout each time. Plan 3 measured these by bisection; the figures live in the manual checklist.
+6. **Targets:** idle CPU < 0.1% (60 s average), idle memory footprint ≤ 30 MB (`phys_footprint`; RSS is not used because it counts shared system frameworks, about 75 MB even for an empty SwiftUI app), and dashboard-open CPU < 1.5%. **The idle target describes the app at rest in its default configuration** (menu-bar icon and time left, no window, no HUD), which `make perf` enforces and which measures 0.000%. Visible, user-requested displays fall under the 1.5% target instead: measured on the reference Mac, the menu-bar stat readout costs ~0.4% of one core and a pinned HUD 0.30% idle (~1.1% while counting down), because writing changing text into the menu bar or a floating panel forces a re-layout each time. Plan 3 measured these by bisection; the figures live in the manual checklist. `make perf-stats` measures the visible configuration end to end (HUD pinned, CPU and power in the menu bar) against the 1.5% limit, putting your own settings back afterwards; it measures 0.750%.
 7. **Crash safety.** Power assertions belong to the process, so the kernel releases them if the app dies. Persisted holds are restored on launch (§4.4).
 8. **Graceful degradation.** Any probe that fails or is unavailable reports `.unavailable`. The UI hides that stat with a "Not available on this Mac" note, and nothing crashes.
 
@@ -295,7 +295,8 @@ The window ships in stages: Triggers and Settings in Plan 2, Overview and Proces
 5. **Settings:**
    - Launch at login (`SMAppService.mainApp`)
    - Global shortcut (default ⌃⌥⌘E, Carbon `RegisterEventHotKey`, needs no Accessibility permission)
-   - Menu-bar readout
+   - Menu-bar readout (icon only, time left, or time plus CPU, memory, power, temperature,
+     network, or CPU and power together)
    - Default policy
    - Presets editor
    - Heads-up lead time
@@ -310,11 +311,12 @@ The window ships in stages: Triggers and Settings in Plan 2, Overview and Proces
 
 - A borderless, non-activating `NSPanel` at the floating level, shown on all Spaces.
 - **Contents:** a ring, the countdown and a compact stat line.
-- **Behavior:**
+- **Behavior** (all four ship as of Plan 4):
   - it can be dragged anywhere and remembers its position;
-  - it snaps to screen corners;
+  - it snaps to the nearest screen corner, 0.3 s after it stops moving, and also when it is shown,
+    so a position saved under another display arrangement can't leave it half off an edge;
   - it fades to 40% opacity when the mouse isn't over it;
-  - optional click-through mode.
+  - optional click-through mode (Settings → Floating HUD).
 
 ### 7.5 Notifications
 
@@ -373,7 +375,7 @@ All files live in `~/Library/Application Support/EyesUpGuardian/`, are JSON, and
   - The sampler: subscribe/unsubscribe lifecycle, zero subscribers means no timer, and ring buffer bounds.
   - Security scans: forbidden symbols, and no package dependencies.
 - **Integration tests** (tagged, run by `make test-integration`): take a real assertion, verify it appears in `IOPMCopyAssertionsByProcess` with the expected name, release it, and verify it's gone. Watch a real short-lived child test process for exit. (The *test* may spawn a process; the app never does.)
-- **Performance:** `make perf` launches the built app, waits 30 s, measures CPU time consumed over 60 s (from `ps`) and the memory footprint (from `footprint`), and fails if above the §3 targets.
+- **Performance:** `make perf` launches the built app, waits 30 s, measures CPU time consumed over 60 s (from `ps`) and the memory footprint (from `footprint`), and fails if above the §3 targets. Run it on an otherwise idle Mac: a run started while a build is still finishing measures the machine, not the app.
 - **Manual checklist** (`docs/manual-test-checklist.md`):
   - every UI surface;
   - Reduce Motion and Reduce Transparency;
