@@ -62,6 +62,7 @@ final class AppEnvironment {
         settings.onChange = { [weak self] settings in
             guard let self else { return }
             SettingsApplier.apply(settings, controller: controller, engine: engine, safety: safety)
+            controller.setHeadsUpLead(settings.headsUpLeadMinutes * 60)
             onSettingsChanged?(settings)
         }
         controller.restore()

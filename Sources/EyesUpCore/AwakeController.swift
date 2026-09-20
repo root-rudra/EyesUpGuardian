@@ -285,6 +285,12 @@ public final class AwakeController {
         commit()
     }
 
+    /// Spec §7.3: how long before the end the heads-up appears.
+    public func setHeadsUpLead(_ seconds: TimeInterval) {
+        guard seconds.isFinite, seconds > 0 else { return }
+        deadlines.headsUpLead = seconds
+    }
+
     public func setHeadsUpHandler(_ handler: @escaping (Date) -> Void) {
         deadlines.onHeadsUp = handler
     }

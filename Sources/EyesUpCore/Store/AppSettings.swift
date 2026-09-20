@@ -44,6 +44,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public static let maxSafetyCapHours = 168.0
     /// Longest a "pause until" may sit in the future before it's treated as stale.
     public static let maxPauseDays = 30.0
+    public static let maxPresets = 8
+    public static let maxElectricityRate = 10.0
+    public static let minHeadsUpLeadMinutes = 1.0
+    public static let maxHeadsUpLeadMinutes = 60.0
 
     public var safetyCapHours: Double?
     public var thermalAutoRelease: Bool
@@ -52,6 +56,11 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var menuBarReadout: MenuBarReadout
     public var hudVisible: Bool
     public var hudPosition: HUDPosition?
+    /// Money per kilowatt-hour, in the system currency. nil means "don't show money at all".
+    public var electricityRate: Double?
+    public var presets: [TimeInterval]
+    public var headsUpLeadMinutes: Double
+    public var keepDisplayOnByDefault: Bool
 
     public init(
         safetyCapHours: Double? = nil,
@@ -60,7 +69,11 @@ public struct AppSettings: Codable, Equatable, Sendable {
         triggerPause: TriggerPause = .none,
         menuBarReadout: MenuBarReadout = .timer,
         hudVisible: Bool = false,
-        hudPosition: HUDPosition? = nil
+        hudPosition: HUDPosition? = nil,
+        electricityRate: Double? = nil,
+        presets: [TimeInterval] = [900, 3600, 7200, 14400],
+        headsUpLeadMinutes: Double = 5,
+        keepDisplayOnByDefault: Bool = false
     ) {
         self.safetyCapHours = safetyCapHours
         self.thermalAutoRelease = thermalAutoRelease
@@ -69,6 +82,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.menuBarReadout = menuBarReadout
         self.hudVisible = hudVisible
         self.hudPosition = hudPosition
+        self.electricityRate = electricityRate
+        self.presets = presets
+        self.headsUpLeadMinutes = headsUpLeadMinutes
+        self.keepDisplayOnByDefault = keepDisplayOnByDefault
     }
 
     public init(from decoder: any Decoder) throws {
@@ -81,6 +98,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
         menuBarReadout = (try? container.decodeIfPresent(MenuBarReadout.self, forKey: .menuBarReadout)) ?? .timer
         hudVisible = try container.decodeIfPresent(Bool.self, forKey: .hudVisible) ?? false
         hudPosition = try container.decodeIfPresent(HUDPosition.self, forKey: .hudPosition)
+        electricityRate = try container.decodeIfPresent(Double.self, forKey: .electricityRate)
+        presets = try container.decodeIfPresent([TimeInterval].self, forKey: .presets) ?? [900, 3600, 7200, 14400]
+        headsUpLeadMinutes = try container.decodeIfPresent(Double.self, forKey: .headsUpLeadMinutes) ?? 5
+        keepDisplayOnByDefault = try container.decodeIfPresent(Bool.self, forKey: .keepDisplayOnByDefault) ?? false
     }
 
     public func validated(now: Date = Date()) -> AppSettings {
@@ -98,7 +119,32 @@ public struct AppSettings: Codable, Equatable, Sendable {
                 && abs(position.x) < 100_000 && abs(position.y) < 100_000
             settings.hudPosition = sane ? position : nil
         }
+        if let rate = settings.electricityRate {
+            let usable = rate.isFinite && rate > 0 && rate <= Self.maxElectricityRate
+            settings.electricityRate = usable ? rate : nil
+        }
+        let usablePresets = settings.presets
+            .filter { $0.isFinite && $0 >= 60 && $0 <= AwakeController.maxManualDuration }
+            .sorted()
+        settings.presets = usablePresets.isEmpty ? AppSettings().presets : Array(usablePresets.prefix(Self.maxPresets))
+        if !settings.headsUpLeadMinutes.isFinite
+            || settings.headsUpLeadMinutes < Self.minHeadsUpLeadMinutes
+            || settings.headsUpLeadMinutes > Self.maxHeadsUpLeadMinutes {
+            settings.headsUpLeadMinutes = 5
+        }
         return settings
+    }
+
+    /// A settings file the user can keep or move to another Mac.
+    public func exportData() throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(self)
+    }
+
+    /// Anything unreadable throws; anything out of range is clamped by `validated()`.
+    public static func imported(from data: Data) throws -> AppSettings {
+        try JSONDecoder().decode(AppSettings.self, from: data)
     }
 }
 
@@ -107,7 +153,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
 @Observable
 public final class SettingsController {
     public private(set) var settings: AppSettings
-    public private(set) var storeNotice: String?
+    public internal(set) var storeNotice: String?
     @ObservationIgnored public var onChange: ((AppSettings) -> Void)?
 
     @ObservationIgnored private let store: JSONFileStore<AppSettings>?
@@ -128,6 +174,22 @@ public final class SettingsController {
             storeNotice = "Settings couldn't be read, so they were reset to their defaults."
         }
         onChange?(settings)
+    }
+
+    public func export() throws -> Data {
+        try settings.exportData()
+    }
+
+    public func importSettings(_ data: Data) throws {
+        let imported = try AppSettings.imported(from: data)
+        settings = imported.validated()
+        persist()
+        onChange?(settings)
+    }
+
+    /// Surfaces a problem in the Settings tab without throwing it away.
+    public func reportNotice(_ message: String) {
+        storeNotice = message
     }
 
     public func update(_ change: (inout AppSettings) -> Void) {

@@ -1,3 +1,5 @@
+import AppKit
+import UniformTypeIdentifiers
 import EyesUpCore
 import SwiftUI
 
@@ -64,6 +66,63 @@ struct SettingsTab: View {
                         .textSelection(.enabled)
                     }
 
+                    Section("Keep awake") {
+                        Toggle("Keep the display on by default", isOn: Binding(
+                            get: { settings.keepDisplayOnByDefault },
+                            set: { on in environment.settings.update { $0.keepDisplayOnByDefault = on } }
+                        ))
+                        LabeledContent("Warn me before sleep") {
+                            Stepper("\(Int(settings.headsUpLeadMinutes)) min", value: Binding(
+                                get: { settings.headsUpLeadMinutes },
+                                set: { value in environment.settings.update { $0.headsUpLeadMinutes = value } }
+                            ), in: AppSettings.minHeadsUpLeadMinutes...AppSettings.maxHeadsUpLeadMinutes, step: 1)
+                        }
+                        LabeledContent("Quick presets") {
+                            Text(settings.presets.map { TimeFormatting.duration($0) }.joined(separator: " · "))
+                                .foregroundStyle(.secondary)
+                        }
+                        HStack {
+                            ForEach([300.0, 900, 1800, 3600, 7200, 14400, 28800], id: \.self) { seconds in
+                                Toggle(TimeFormatting.duration(seconds), isOn: Binding(
+                                    get: { settings.presets.contains(seconds) },
+                                    set: { on in
+                                        environment.settings.update { current in
+                                            var presets = Set(current.presets)
+                                            if on { presets.insert(seconds) } else { presets.remove(seconds) }
+                                            current.presets = presets.sorted()
+                                        }
+                                    }
+                                ))
+                                .toggleStyle(.button)
+                                .controlSize(.small)
+                            }
+                        }
+                    }
+
+                    Section("Energy") {
+                        LabeledContent("Electricity rate") {
+                            TextField("none", value: Binding(
+                                get: { settings.electricityRate },
+                                set: { rate in environment.settings.update { $0.electricityRate = rate } }
+                            ), format: .number.precision(.fractionLength(0...3)))
+                            .frame(width: 90)
+                            Text("per kWh").foregroundStyle(.secondary)
+                        }
+                        Text("Used only to turn the energy the Mac drew into money on the History tab. Leave it empty and the app shows kilowatt-hours only.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+
+                    Section("Your data") {
+                        HStack {
+                            Button("Export settings…") { exportSettings() }
+                            Button("Import settings…") { importSettings() }
+                            Spacer()
+                            Button("Clear history", role: .destructive) { environment.history.clear() }
+                        }
+                        Text("Everything this app stores lives in ~/Library/Application Support/EyesUpGuardian, readable only by you.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+
                     Section("Triggers") {
                         LabeledContent("Status") {
                             Text(pauseDescription)
@@ -81,6 +140,30 @@ struct SettingsTab: View {
                 }
             }
             .padding(20)
+        }
+    }
+
+    private func exportSettings() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "EyesUpGuardian-settings.json"
+        panel.allowedContentTypes = [.json]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try environment.settings.export().write(to: url, options: .atomic)
+        } catch {
+            environment.settings.reportNotice("Couldn't export settings: \(error.localizedDescription)")
+        }
+    }
+
+    private func importSettings() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try environment.settings.importSettings(Data(contentsOf: url)) // security-allow: a file the user picked in an open panel
+        } catch {
+            environment.settings.reportNotice("That file isn't a settings file this app can read.")
         }
     }
 

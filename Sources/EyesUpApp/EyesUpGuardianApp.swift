@@ -53,6 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             stats: StatsViewModel(center: environment.metrics,
                                   ids: [.cpu, .memory, .power, .temperature, .system, .otherAssertions],
                                   interval: 1),
+            environmentSettings: environment.settings.settings,
             onHUDToggle: PopoverView.HUDToggle(isPinned: { hud.isVisible }, toggle: { hud.toggle() })
         ) }
         statusItem.applyReadout(environment.settings.settings.menuBarReadout, center: environment.metrics)

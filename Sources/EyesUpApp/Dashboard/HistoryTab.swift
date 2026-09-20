@@ -103,9 +103,8 @@ struct HistoryTab: View {
 
     private func energyDetail(_ kilowattHours: Double) -> String {
         guard kilowattHours > 0 else { return "needs power readings" }
-        // Task 5 adds `electricityRate` to the settings and swaps the nil below for it; until then
-        // this reads "set a rate in Settings", which is also what an unset rate should say.
-        return EnergyCost.money(kilowattHours, ratePerKilowattHour: nil) ?? "set a rate in Settings"
+        return EnergyCost.money(kilowattHours, ratePerKilowattHour: environment.settings.settings.electricityRate)
+            ?? "set a rate in Settings"
     }
 
     @ViewBuilder

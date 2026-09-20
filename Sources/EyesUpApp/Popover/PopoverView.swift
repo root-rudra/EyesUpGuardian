@@ -10,6 +10,7 @@ struct PopoverView: View {
     /// whose macro plugin ships only with full Xcode, not the Command Line Tools.
     @Bindable var form: PopoverFormState
     let stats: StatsViewModel
+    let environmentSettings: AppSettings
     /// Lets the popover pin the HUD without knowing about windows.
     struct HUDToggle {
         var isPinned: () -> Bool
@@ -19,7 +20,9 @@ struct PopoverView: View {
     let onHUDToggle: HUDToggle
 
     private var mood: AmbientBackground.Mood { controller.isAwake ? .awake : .idle }
-    private var newPolicy: SleepPolicy { form.displayForNew || controller.displayOn ? [.system, .display] : .system }
+    private var newPolicy: SleepPolicy {
+        form.displayForNew || controller.displayOn || environmentSettings.keepDisplayOnByDefault ? [.system, .display] : .system
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -87,7 +90,7 @@ struct PopoverView: View {
         VStack(alignment: .leading, spacing: 8) {
             GlassEffectContainer {
                 HStack(spacing: 6) {
-                    ForEach(Defaults.presets, id: \.self) { seconds in
+                    ForEach(environmentSettings.presets, id: \.self) { seconds in
                         Button(TimeFormatting.duration(seconds)) {
                             run { try controller.startTimer(duration: seconds, policy: newPolicy) }
                         }

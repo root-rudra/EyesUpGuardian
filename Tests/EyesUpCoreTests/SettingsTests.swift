@@ -90,4 +90,51 @@ import Testing
         #expect(AppSettings(hudPosition: HUDPosition(x: 1e9, y: 1e9)).validated().hudPosition == nil)
         #expect(AppSettings(hudPosition: HUDPosition(x: 120, y: 340)).validated().hudPosition == HUDPosition(x: 120, y: 340))
     }
+    @Test func newSettingsHaveSensibleDefaults() {
+        let settings = AppSettings()
+        #expect(settings.electricityRate == nil)
+        #expect(settings.presets == [900, 3600, 7200, 14400])
+        #expect(settings.headsUpLeadMinutes == 5)
+        #expect(!settings.keepDisplayOnByDefault)
+    }
+
+    @Test func settingsValidationClampsTheNewFields() {
+        #expect(AppSettings(electricityRate: -1).validated().electricityRate == nil)
+        #expect(AppSettings(electricityRate: .nan).validated().electricityRate == nil)
+        #expect(AppSettings(electricityRate: 99).validated().electricityRate == nil)   // no tariff is $99/kWh
+        #expect(AppSettings(electricityRate: 0.32).validated().electricityRate == 0.32)
+
+        #expect(AppSettings(presets: []).validated().presets == AppSettings().presets)
+        #expect(AppSettings(presets: [0, -5, 60, 1e12]).validated().presets == [60])
+        #expect(AppSettings(presets: Array(repeating: 60, count: 20)).validated().presets.count <= AppSettings.maxPresets)
+
+        #expect(AppSettings(headsUpLeadMinutes: 0).validated().headsUpLeadMinutes == 5)
+        #expect(AppSettings(headsUpLeadMinutes: 600).validated().headsUpLeadMinutes == 5)
+        #expect(AppSettings(headsUpLeadMinutes: 10).validated().headsUpLeadMinutes == 10)
+    }
+
+    @Test func settingsRoundTripThroughExportAndImport() throws {
+        var settings = AppSettings()
+        settings.electricityRate = 0.28
+        settings.presets = [600, 1800]
+        settings.menuBarReadout = .timerAndPower
+        let data = try settings.exportData()
+        #expect(try AppSettings.imported(from: data) == settings)
+    }
+
+    @Test func importingRubbishIsRefusedAndChangesNothing() throws {
+        let controller = SettingsController(store: tempStore())
+        controller.update { $0.electricityRate = 0.3 }
+        #expect(throws: (any Error).self) { try controller.importSettings(Data("not json".utf8)) }
+        #expect(controller.settings.electricityRate == 0.3)
+    }
+
+    @Test func importingValidatesWhatItAccepts() throws {
+        let controller = SettingsController(store: tempStore())
+        let hostile = Data(#"{"electricityRate": 500, "headsUpLeadMinutes": 9999, "presets": []}"#.utf8)
+        try controller.importSettings(hostile)
+        #expect(controller.settings.electricityRate == nil)
+        #expect(controller.settings.headsUpLeadMinutes == 5)
+        #expect(controller.settings.presets == AppSettings().presets)
+    }
 }
