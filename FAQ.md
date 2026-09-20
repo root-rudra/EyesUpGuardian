@@ -123,7 +123,9 @@ when your Mac actually slept and woke.
 line. It snaps to a corner, fades when your pointer is elsewhere, and can let clicks pass through.
 
 **Menu bar:** the icon alone, the time left, or the time plus CPU, memory, power, temperature or
-network.
+network. A countdown followed by **∞** — "45m ∞" — means your session ends then, but something else
+(a trigger, or an indefinite session) keeps the Mac awake afterwards. **∞** on its own means nothing
+currently has an end.
 
 ### Which stats need special hardware?
 

@@ -38,6 +38,11 @@ public final class AwakeController {
 
     public var isAwake: Bool { !holds.isEmpty }
     public var awakeUntil: Date? { Hold.awakeUntil(holds, safetyCap: safetyCap) }
+    /// The soonest session end, even when something else is holding with no end. This is what the
+    /// countdowns show; `awakeUntil` answers the stricter question of when the Mac may sleep.
+    public var nextDeadline: Date? { Hold.nextDeadline(holds, safetyCap: safetyCap) }
+    /// True when a trigger or an uncapped indefinite session is holding.
+    public var isHeldWithoutEnd: Bool { Hold.hasEndlessHold(holds, safetyCap: safetyCap) }
     /// Spec §4.5 safety cap, in seconds; nil means no cap.
     public private(set) var safetyCap: TimeInterval?
     /// Labels of holds the safety cap ended, for the notification.

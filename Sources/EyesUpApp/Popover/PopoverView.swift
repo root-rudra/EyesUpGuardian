@@ -87,12 +87,12 @@ struct PopoverView: View {
 
     private var headline: String {
         guard controller.isAwake else { return "Your Mac may sleep" }
-        return controller.awakeUntil == nil ? "Awake" : "Awake for another"
+        return controller.nextDeadline == nil ? "Awake" : "Awake for another"
     }
 
     private func bigText(now: Date) -> String {
         guard controller.isAwake else { return "Idle" }
-        guard let until = controller.awakeUntil else { return "No end time" }
+        guard let until = controller.nextDeadline else { return "No end time" }
         return TimeFormatting.countdown(until.timeIntervalSince(now))
     }
 

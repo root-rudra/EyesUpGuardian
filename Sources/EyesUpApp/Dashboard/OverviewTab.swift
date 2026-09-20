@@ -49,7 +49,7 @@ struct OverviewTab: View {
 
     private func countdown(now: Date) -> String {
         guard environment.controller.isAwake else { return "Idle" }
-        guard let until = environment.controller.awakeUntil else { return "No end time" }
+        guard let until = environment.controller.nextDeadline else { return "No end time" }
         return TimeFormatting.countdown(until.timeIntervalSince(now))
     }
 

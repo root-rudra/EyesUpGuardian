@@ -74,7 +74,9 @@ final class StatusItemController: NSObject {
     func refresh() {
         guard let button = statusItem.button else { return }
         let now = Date()
-        let until = controller.awakeUntil
+        // The soonest end, not `awakeUntil`: a trigger holding with no end of its own must not
+        // hide the countdown of the session the user started.
+        let until = controller.nextDeadline
         var fraction: Double?
         if let until, let start = controller.sessionStart {
             fraction = TimeFormatting.remainingFraction(now: now, start: start, end: until)
@@ -86,10 +88,14 @@ final class StatusItemController: NSObject {
             button.image = RingIcon.image(active: controller.isAwake, fraction: fraction)
             drawnIcon = iconState
         }
-        var title = readout == .iconOnly ? "" : (until.map { " " + TimeFormatting.menuBar(remaining: $0.timeIntervalSince(now)) } ?? "")
-        if let stats, case let text = stats.readoutText(for: readout), !text.isEmpty {
-            title += title.isEmpty ? " " + text : " · " + text
-        }
+        let title = MenuBarTitle.text(
+            readout: readout,
+            isAwake: controller.isAwake,
+            deadline: until,
+            endless: controller.isHeldWithoutEnd,
+            now: now,
+            stat: stats?.readoutText(for: readout) ?? ""
+        )
         if drawnTitle != title {
             button.title = title
             drawnTitle = title

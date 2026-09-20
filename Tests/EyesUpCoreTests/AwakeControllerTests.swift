@@ -489,4 +489,45 @@ import Testing
         #expect(first.id == second.id)
         #expect(controller.holds.first?.policy == [.system, .display])
     }
+    /// Regression: with a trigger holding (no end of its own), every countdown in the app went
+    /// blank — the menu bar showed no time, the popover said "No end time" — although the user's
+    /// own timer was still running. `awakeUntil` is nil there, correctly; the countdowns need the
+    /// soonest deadline instead.
+    @Test func aTriggerHoldDoesNotHideTheTimerCountdown() throws {
+        let controller = makeController()
+        try controller.startTimer(duration: 2700, policy: .system)
+        controller.beginTriggerHold(triggerID: UUID(), label: "Docker is open", policy: .system)
+
+        #expect(controller.awakeUntil == nil)        // the Mac has no known sleep time — true
+        #expect(controller.isHeldWithoutEnd)
+        #expect(controller.nextDeadline == clock.now.addingTimeInterval(2700))
+    }
+
+    @Test func theSoonestDeadlineWins() throws {
+        let controller = makeController()
+        try controller.startTimer(duration: 3600, policy: .system)
+        controller.beginTriggerHold(triggerID: UUID(), label: "trigger", policy: .system)
+        #expect(controller.nextDeadline == clock.now.addingTimeInterval(3600))
+
+        // A shorter session replaces the manual one; the trigger keeps holding.
+        try controller.startTimer(duration: 600, policy: .system)
+        #expect(controller.nextDeadline == clock.now.addingTimeInterval(600))
+        #expect(controller.isHeldWithoutEnd)
+    }
+
+    @Test func withNothingEndlessBothAnswersAgree() throws {
+        let controller = makeController()
+        try controller.startTimer(duration: 900, policy: .system)
+        #expect(!controller.isHeldWithoutEnd)
+        #expect(controller.nextDeadline == controller.awakeUntil)
+    }
+
+    /// A safety cap gives even an endless hold an end, so the countdown comes back.
+    @Test func theSafetyCapBoundsAnEndlessHold() {
+        let controller = makeController()
+        controller.setSafetyCap(3600)
+        _ = controller.startIndefinite(policy: .system)
+        #expect(!controller.isHeldWithoutEnd)
+        #expect(controller.nextDeadline == clock.now.addingTimeInterval(3600))
+    }
 }

@@ -85,6 +85,21 @@ public struct Hold: Identifiable, Codable, Hashable, Sendable {
         }
     }
 
+    /// The soonest end among the holds that have one, ignoring those that don't.
+    ///
+    /// This is "how long is my timer", which is a different question from `awakeUntil`'s "when may
+    /// the Mac sleep". A trigger holding with no end of its own makes the second question
+    /// unanswerable, but it must not hide the countdown of a session the user started.
+    public static func nextDeadline(_ holds: [Hold], safetyCap: TimeInterval? = nil) -> Date? {
+        holds.compactMap { $0.expiry(safetyCap: safetyCap) }.min()
+    }
+
+    /// True when something is holding with no end in sight — a trigger, or an indefinite session
+    /// with no safety cap to bound it.
+    public static func hasEndlessHold(_ holds: [Hold], safetyCap: TimeInterval? = nil) -> Bool {
+        holds.contains { $0.expiry(safetyCap: safetyCap) == nil }
+    }
+
     /// When the Mac may sleep again, or nil if there are no holds or any hold has no end.
     public static func awakeUntil(_ holds: [Hold], safetyCap: TimeInterval? = nil) -> Date? {
         guard !holds.isEmpty else { return nil }

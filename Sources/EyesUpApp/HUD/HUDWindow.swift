@@ -21,7 +21,7 @@ struct HUDView: View {
         // A per-second tick only earns its keep while a countdown is running: with no deadline the
         // HUD's text changes at most once a minute, and this panel is always on screen.
         Group {
-            if controller.awakeUntil != nil {
+            if controller.nextDeadline != nil {
                 TimelineView(.periodic(from: .now, by: 1)) { context in panel(now: context.date) }
             } else {
                 TimelineView(.everyMinute) { context in panel(now: context.date) }
@@ -53,13 +53,13 @@ struct HUDView: View {
     }
 
     private func ringFraction(now: Date) -> Double? {
-        guard let until = controller.awakeUntil, let start = controller.sessionStart else { return nil }
+        guard let until = controller.nextDeadline, let start = controller.sessionStart else { return nil }
         return TimeFormatting.remainingFraction(now: now, start: start, end: until)
     }
 
     private func countdown(now: Date) -> String {
         guard controller.isAwake else { return "Idle" }
-        guard let until = controller.awakeUntil else { return "No end time" }
+        guard let until = controller.nextDeadline else { return "No end time" }
         return TimeFormatting.countdown(until.timeIntervalSince(now))
     }
 
