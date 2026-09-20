@@ -1,0 +1,33 @@
+name: Feature request
+description: Something the app should be able to do
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If you're not sure yet, or want to talk it through first, open a Discussion under **Ideas**
+        instead — no form, and other people can add to it.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The situation, not the solution. It often turns out there's a simpler way to help.
+      placeholder: I run overnight renders and want the Mac to sleep as soon as the render finishes, whenever that is.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like the app to do?
+    validations:
+      required: false
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Please confirm
+      description: |
+        This app keeps three promises: no network access, no admin rights, and no third-party
+        dependencies. Requests that need any of those can't be built here, however good the idea.
+      options:
+        - label: As far as I can tell, this wouldn't need network access, admin rights or a third-party library.
+          required: true

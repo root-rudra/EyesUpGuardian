@@ -19,11 +19,15 @@ EyesUpGuardian keeps your Mac awake. That is all it does, and this file lists ex
 A test enforces these (`Tests/EyesUpCoreTests/SecurityGuardTests.swift`): it scans every file in `Sources/` for forbidden API spellings — process launching, networking including `bind`/`listen`/`accept`, blind `Data(contentsOf:)`, XPC and Mach lookups, privilege escalation, runtime code loading, inbound channels — and fails the build on a match. It also checks the build scripts fetch nothing and the package declares no dependencies, binary targets, plugins or unsafe flags. Exceptions must be marked on the line that needs one, so they cannot hide. You can verify the built app independently:
 
 ```bash
-nm -u build/EyesUpGuardian.app/Contents/MacOS/EyesUpGuardian | grep -E 'posix_spawn|execv|fork|system|popen|dlopen|socket|connect|setuid|NSTask|URLSession'
+nm -u build/EyesUpGuardian.app/Contents/MacOS/EyesUpGuardian \
+  | grep -E '^_(posix_spawn|execv[eplP]*|fork|system|popen|dlopen|socket|connect|bind|listen|accept|setuid|seteuid|setgid)$'
 otool -L build/EyesUpGuardian.app/Contents/MacOS/EyesUpGuardian
 ```
 
-The first command should print nothing. The second should list only Apple frameworks. To confirm it holds no network connections while running:
+The first command prints nothing but `_dlsym`, which the Swift runtime uses for its own OS-version
+check (see above). The patterns are anchored on purpose: an unanchored search for `system` also
+matches SwiftUI's `Font.system(size:)` and `Image(systemName:)`, which have nothing to do with
+running commands. The second should list only Apple frameworks. To confirm it holds no network connections while running:
 
 ```bash
 lsof -nP -p "$(pgrep -nx EyesUpGuardian)" | grep -E 'TCP|UDP|IPv4|IPv6'

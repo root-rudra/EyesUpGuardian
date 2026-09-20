@@ -61,7 +61,7 @@ Run before every release. Each check needs a fresh `make app` build.
 - [ ] Popover shows four tiles (CPU, Memory, Power, Uptime) updating about once a second.
 - [ ] Closing the popover stops the updates (Activity Monitor: CPU back to ~0%).
 - [ ] Overview: countdown, three sparklines filling over ~10 s, twelve tiles with real values.
-- [ ] Power and fan tiles show numbers on this Mac (Mac Studio). On hardware without them, they read "—".
+- [ ] Power and fan tiles show numbers on a Mac whose SMC exposes them. On hardware without those keys, they read "—".
 - [ ] Other apps holding the Mac awake are listed, in the popover and in Overview.
 - [ ] Processes: sorted by CPU, filter works, sort switches, right-click offers Copy PID / Reveal / Keep awake until this exits.
 - [ ] Quit is offered only for your own processes, asks for confirmation, and reports the outcome.

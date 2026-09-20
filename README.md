@@ -1,6 +1,16 @@
-# EyesUpGuardian
+# EyesUpGuardian — keep your Mac awake, and see what it's doing
 
-A native macOS menu-bar app that keeps your Mac awake. It's a safe, clickable replacement for `caffeinate` and Amphetamine.
+**A free, open-source macOS menu bar app that prevents your Mac from sleeping and shows live system
+stats.** It keeps the display awake and the system awake — on a timer, indefinitely, on a schedule,
+or automatically while an app or command is running — and shows CPU, memory, power draw in watts,
+temperature, fan speed, GPU, disk, network and the full process list while it does.
+
+A clickable replacement for the `caffeinate` terminal command and an open-source alternative to
+Amphetamine, Caffeine, KeepingYouAwake and Amphetamine-style utilities — with **no network access at
+all**, no telemetry, no account, no subscription and zero third-party dependencies. MIT licensed.
+
+New here? The [FAQ](FAQ.md) answers what it can do, what it costs in CPU and memory, and how the
+privacy and security claims can be checked on your own machine.
 
 - Timers, indefinite, until a time, or until a process exits (kernel-notified, PID-reuse safe)
 - Every `caffeinate` sleep type: system (`-i`), display (`-d`), disk (`-m`), system on AC (`-s`), user-activity nudge (`-u`) — the last two are in Settings → Sleep types
@@ -70,6 +80,13 @@ The app is ad-hoc signed. On first launch of a downloaded build, right-click the
 
 See [SECURITY.md](SECURITY.md) — it lists every system interface the app touches, and the commands to check that it holds no network connections, links no third-party code, and keeps nothing outside its own folder. [CONTRIBUTING.md](CONTRIBUTING.md) has the rules the build enforces.
 
+## Questions, bugs and ideas
+
+- **[FAQ](FAQ.md)** — capabilities, resource use, privacy, installing without the App Store, troubleshooting
+- **Issues** — bug reports and concrete requests
+- **Discussions** — questions, ideas and feature requests to talk through first
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE). Contributions welcome; [CONTRIBUTING.md](CONTRIBUTING.md) has the
+rules the build enforces.

@@ -1,0 +1,57 @@
+name: Bug report
+description: Something doesn't work the way it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Please don't include anything private — screenshots of your work,
+        file paths with your name in them, or anything from a machine you don't own.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+      placeholder: I set a 2-hour timer, and after about 20 minutes the display slept anyway.
+    validations:
+      required: true
+  - type: textarea
+    id: assertions
+    attributes:
+      label: What the system says
+      description: |
+        Run this while the problem is happening and paste the output. It shows what the app is holding.
+      value: |
+        <details><summary>pmset -g assertions | grep EyesUpGuardian</summary>
+
+        ```
+        paste here
+        ```
+        </details>
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: EyesUpGuardian → About, or the release you downloaded.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac model
+      description: Apple menu → About This Mac. The model matters for the sensor readings.
+      placeholder: macOS 26.7, MacBook Pro M3
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - Built it myself (make install)
+        - Downloaded the .dmg from Releases
+    validations:
+      required: true
