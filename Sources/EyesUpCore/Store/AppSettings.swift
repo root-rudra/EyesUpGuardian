@@ -61,6 +61,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var presets: [TimeInterval]
     public var headsUpLeadMinutes: Double
     public var keepDisplayOnByDefault: Bool
+    public var launchAtLogin: Bool
 
     public init(
         safetyCapHours: Double? = nil,
@@ -73,7 +74,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
         electricityRate: Double? = nil,
         presets: [TimeInterval] = [900, 3600, 7200, 14400],
         headsUpLeadMinutes: Double = 5,
-        keepDisplayOnByDefault: Bool = false
+        keepDisplayOnByDefault: Bool = false,
+        launchAtLogin: Bool = false
     ) {
         self.safetyCapHours = safetyCapHours
         self.thermalAutoRelease = thermalAutoRelease
@@ -86,6 +88,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.presets = presets
         self.headsUpLeadMinutes = headsUpLeadMinutes
         self.keepDisplayOnByDefault = keepDisplayOnByDefault
+        self.launchAtLogin = launchAtLogin
     }
 
     public init(from decoder: any Decoder) throws {
@@ -102,6 +105,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         presets = try container.decodeIfPresent([TimeInterval].self, forKey: .presets) ?? [900, 3600, 7200, 14400]
         headsUpLeadMinutes = try container.decodeIfPresent(Double.self, forKey: .headsUpLeadMinutes) ?? 5
         keepDisplayOnByDefault = try container.decodeIfPresent(Bool.self, forKey: .keepDisplayOnByDefault) ?? false
+        launchAtLogin = try container.decodeIfPresent(Bool.self, forKey: .launchAtLogin) ?? false
     }
 
     public func validated(now: Date = Date()) -> AppSettings {

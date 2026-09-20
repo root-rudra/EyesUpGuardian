@@ -18,6 +18,7 @@ final class AppEnvironment {
     let history: HistoryController
     let recorder: HistoryRecorder
     let workspace: LiveWorkspaceEvents
+    let launchAtLogin = LaunchAtLogin()
 
     /// Set by the app delegate: UI that must react to a settings change.
     var onSettingsChanged: ((AppSettings) -> Void)?
@@ -69,6 +70,7 @@ final class AppEnvironment {
         engine.load()      // triggers first, so settings can pause them
         settings.load()
         safety.start()
+        launchAtLogin.syncFromSystem()
         history.load()
         history.prune()
         observeHolds()

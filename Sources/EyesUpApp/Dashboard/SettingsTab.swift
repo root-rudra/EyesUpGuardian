@@ -67,6 +67,16 @@ struct SettingsTab: View {
                     }
 
                     Section("Keep awake") {
+                        Toggle("Open EyesUpGuardian at login", isOn: Binding(
+                            get: { environment.launchAtLogin.isEnabled },
+                            set: { on in
+                                if let message = environment.launchAtLogin.set(on) {
+                                    environment.settings.reportNotice(message)
+                                } else {
+                                    environment.settings.update { $0.launchAtLogin = on }
+                                }
+                            }
+                        ))
                         Toggle("Keep the display on by default", isOn: Binding(
                             get: { settings.keepDisplayOnByDefault },
                             set: { on in environment.settings.update { $0.keepDisplayOnByDefault = on } }

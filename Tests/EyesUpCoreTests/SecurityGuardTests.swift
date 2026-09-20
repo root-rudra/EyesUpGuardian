@@ -30,7 +30,9 @@ import Testing
         (#"NSWorkspace[^\n]{0,40}\.(open|openApplication|launchApplication|openURLs)\s*\("#, "launching other apps"),
         (#"\bdl(open|sym)\s*\("#, "loading code at runtime"),
         (#"\b(getaddrinfo|CFSocket|NSURLConnection|NWPathMonitor)\b"#, "network access"),
-        (#"\bset(res|re|r|e)?[ug]id\b|\b(SMAppService|SMLoginItemSetEnabled)\b"#, "privilege escalation"),
+        // SMAppService.mainApp is just "open me at login"; the daemon/agent/loginItem forms install
+        // something that runs on its own, which this app never does.
+        (#"\bset(res|re|r|e)?[ug]id\b|SMAppService\.(daemon|agent|loginItem)\s*\(|\bSMLoginItemSetEnabled\b"#, "privilege escalation"),
         (#"NSXPCConnection\s*\([^)\n]*machServiceName"#, "privilege escalation"),
         (#"\bProcess(\s*\(|\.init\b|\.launchedProcess|\.launchedTaskWithLaunchPath)"#, "launching processes"),
         (#":\s*Process\s*=\s*\.init\b"#, "launching processes"),
@@ -135,6 +137,11 @@ import Testing
         #expect(try Self.violations(in: "let w = NSWorkspace.shared\nw.open(url)") == ["launching other apps"])
         #expect(try Self.violations(in: "NSWorkspace.shared.activateFileViewerSelecting([url])") == ["launching other apps"])
         // Every exception is one line, marked, and listed in SECURITY.md.
+        // Launch at login is allowed; daemons and agents are not.
+        #expect(try Self.violations(in: "SMAppService.mainApp.register()").isEmpty)
+        #expect(try Self.violations(in: "SMAppService.daemon(plistName: p)") == ["privilege escalation"])
+        #expect(try Self.violations(in: "SMAppService.agent(plistName: p)") == ["privilege escalation"])
+        #expect(try Self.violations(in: "SMAppService.loginItem(identifier: id)") == ["privilege escalation"])
         #expect(Self.allowMarker == "// security-allow:")
     }
 
