@@ -189,6 +189,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
 public final class SettingsController {
     public private(set) var settings: AppSettings
     public internal(set) var storeNotice: String?
+
+    /// Notices are dismissible: one bad launch shouldn't leave a permanent banner.
+    public func clearNotice() { storeNotice = nil }
     @ObservationIgnored public var onChange: ((AppSettings) -> Void)?
 
     @ObservationIgnored private let store: JSONFileStore<AppSettings>?

@@ -241,4 +241,14 @@ import Testing
         #expect(throws: TriggerError.invalid) { try engine.add(makeTrigger(name: "One too many")) }
         #expect(engine.triggers.count == TriggerValidator.maxTriggers)
     }
+    @Test func noticesCanBeCleared() throws {
+        let store = tempStore()
+        try FileManager.default.createDirectory(at: store.url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("nonsense".utf8).write(to: store.url)
+        let engine = makeEngine(controller: makeController(), store: store)
+        engine.load()
+        #expect(engine.storeNotice != nil)
+        engine.clearNotice()
+        #expect(engine.storeNotice == nil)
+    }
 }

@@ -18,6 +18,8 @@ struct PopoverView: View {
     }
 
     let onHUDToggle: HUDToggle
+    /// The engine's paused state, read when the popover opens.
+    let isPaused: () -> Bool
 
     private var mood: AmbientBackground.Mood { controller.isAwake ? .awake : .idle }
     private var newPolicy: SleepPolicy {
@@ -27,6 +29,7 @@ struct PopoverView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
+            pausedBadge
             presets
             entryPanel
             if controller.isAwake { activeHolds }
@@ -40,6 +43,15 @@ struct PopoverView: View {
         .background(AmbientBackground(mood: mood))
         .onAppear { stats.start() }
         .onDisappear { stats.stop() }
+    }
+
+    @ViewBuilder
+    private var pausedBadge: some View {
+        if isPaused() {
+            Label("Triggers paused", systemImage: "pause.circle.fill")
+                .font(.caption)
+                .foregroundStyle(.orange)
+        }
     }
 
     // MARK: Header: live countdown (TimelineView ticks only while the popover is on screen)
@@ -254,7 +266,11 @@ struct PopoverView: View {
                 .font(.caption).foregroundStyle(.red)
         }
         if let notice = controller.storeNotice {
-            Label(notice, systemImage: "info.circle").font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Label(notice, systemImage: "info.circle").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Button("Dismiss") { controller.clearNotice() }.buttonStyle(.plain).font(.caption2)
+            }
         }
     }
 

@@ -55,4 +55,11 @@ public struct ProcessControl {
             throw ProcessControlError.signalRefused
         }
     }
+
+    /// True when a process with this PID exists, whoever owns it.
+    public static func processExists(_ pid: Int32) -> Bool {
+        // Signal 0 sends nothing; it only asks whether the process exists. EPERM means it exists
+        // and belongs to someone else, which is exactly what the caller needs to distinguish.
+        pid > 0 && (kill(pid, 0) == 0 || errno == EPERM)
+    }
 }

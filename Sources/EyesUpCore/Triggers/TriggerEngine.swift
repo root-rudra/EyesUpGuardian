@@ -22,6 +22,9 @@ public final class TriggerEngine {
     public private(set) var pause: TriggerPause = .none
     public private(set) var storeNotice: String?
 
+    /// Notices are dismissible: one bad launch shouldn't leave a permanent banner.
+    public func clearNotice() { storeNotice = nil }
+
     public var isPaused: Bool { pause != .none }
 
     /// Messages for triggers whose `notifyOnChange` is on.

@@ -6,6 +6,7 @@ public enum AwakeError: Error, Equatable, Sendable {
     case dateInPast
     case invalidPID
     case noSuchProcess
+    case notYourProcess
     case ownProcess
 
     public var message: String {
@@ -14,6 +15,7 @@ public enum AwakeError: Error, Equatable, Sendable {
         case .dateInPast: "That time has already passed."
         case .invalidPID: "Enter a process ID using digits only, like 48213."
         case .noSuchProcess: "No running process has that ID."
+        case .notYourProcess: "That process belongs to another user, so EyesUpGuardian can't watch it."
         case .ownProcess: "EyesUpGuardian can't watch itself."
         }
     }
@@ -28,6 +30,9 @@ public final class AwakeController {
     public private(set) var holds: [Hold] = []
     public private(set) var lastError: PowerAssertionError?
     public private(set) var storeNotice: String?
+
+    /// Notices are dismissible: one bad launch shouldn't leave a permanent banner.
+    public func clearNotice() { storeNotice = nil }
 
     public var isAwake: Bool { !holds.isEmpty }
     public var awakeUntil: Date? { Hold.awakeUntil(holds, safetyCap: safetyCap) }
@@ -100,7 +105,10 @@ public final class AwakeController {
     public func watchProcess(pid: Int32, policy: SleepPolicy, grace: TimeInterval? = nil) throws -> Hold {
         guard pid > 0 else { throw AwakeError.invalidPID }
         guard pid != ownPID else { throw AwakeError.ownProcess }
-        guard let identity = inspector.identity(of: pid) else { throw AwakeError.noSuchProcess }
+        guard let identity = inspector.identity(of: pid) else {
+            // libproc refuses another user's process, which is different from there being none.
+            throw ProcessControl.processExists(pid) ? AwakeError.notYourProcess : AwakeError.noSuchProcess
+        }
         let name = String((inspector.name(of: pid) ?? "process").prefix(40))
         let hold = Hold(label: "PID \(pid) · \(name)", policy: policy, end: .processExit(identity), grace: grace, createdAt: clock.now)
         holds.append(hold)
@@ -110,7 +118,7 @@ public final class AwakeController {
 
     /// Validates user-typed PIDs: ASCII digits only, 1...Int32.max.
     public nonisolated static func parsePID(_ text: String) throws -> Int32 {
-        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.count <= 10,
               trimmed.unicodeScalars.allSatisfy({ ("0"..."9").contains($0) }),
               let pid = Int32(trimmed), pid > 0 else { throw AwakeError.invalidPID }

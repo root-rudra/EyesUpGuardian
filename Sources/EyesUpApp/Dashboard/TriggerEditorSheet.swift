@@ -16,7 +16,6 @@ struct TriggerEditorSheet: View {
                 Picker("Keep awake", selection: $draft.kind) {
                     ForEach(TriggerDraft.Kind.allCases) { kind in Text(kind.title).tag(kind) }
                 }
-                .disabled(!draft.isNew)
 
                 TextField("Name", text: $draft.name, prompt: Text(draft.defaultName))
 

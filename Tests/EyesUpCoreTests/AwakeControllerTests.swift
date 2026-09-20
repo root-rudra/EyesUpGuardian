@@ -444,4 +444,21 @@ import Testing
         #expect(controller.holds.contains { $0.source == .manual })
         #expect(controller.awakeUntil == referenceDate.addingTimeInterval(24 * 3600))
     }
+    @Test func parsePIDAcceptsAPastedValueWithANewline() throws {
+        #expect(try AwakeController.parsePID("48213\n") == 48213)
+        #expect(try AwakeController.parsePID(" 48213 \n") == 48213)
+    }
+    /// PID 1 is launchd: it always exists and always belongs to root, so libproc refuses its
+    /// identity. Saying "no such process" there would be a lie.
+    @Test func watchingAnotherUsersProcessSaysSo() {
+        let controller = makeController()
+        #expect(throws: AwakeError.notYourProcess) { try controller.watchProcess(pid: 1, policy: .system) }
+    }
+
+    @Test func watchingAPIDThatDoesNotExistStillSaysThat() {
+        let controller = makeController()
+        #expect(throws: AwakeError.noSuchProcess) {
+            try controller.watchProcess(pid: Int32.max - 1, policy: .system)
+        }
+    }
 }

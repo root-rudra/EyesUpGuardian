@@ -90,11 +90,11 @@ struct ProcessesTab: View {
     }
 
     private var summary: String {
-        let all = stats.snapshot.processes ?? []
-        let threads = all.reduce(0) { $0 + $1.threads }
+        let shown = entries
+        let threads = shown.reduce(0) { $0 + $1.threads }
         let load = stats.snapshot.system?.loadAverage
         let loadText = load.map { String(format: "load %.2f %.2f %.2f", $0.0, $0.1, $0.2) } ?? ""
-        return "\(all.count) shown · \(threads) threads · \(loadText)"
+        return "\(shown.count) shown · \(threads) threads · \(loadText)"
     }
 
     private var table: some View {

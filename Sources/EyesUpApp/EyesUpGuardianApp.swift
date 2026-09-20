@@ -47,6 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.onOpenDashboard = { dashboard.show() }
         statusItem.onToggleHUD = { hud.toggle() }
         statusItem.onIsHUDPinned = { hud.isVisible }
+        statusItem.onIsPaused = { environment.engine.isPaused }
         statusItem.setPopoverContent { PopoverView(
             controller: environment.controller,
             onOpenDashboard: { dashboard.show() },
@@ -55,7 +56,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                   ids: [.cpu, .memory, .power, .temperature, .system, .otherAssertions],
                                   interval: 1),
             environmentSettings: environment.settings.settings,
-            onHUDToggle: PopoverView.HUDToggle(isPinned: { hud.isVisible }, toggle: { hud.toggle() })
+            onHUDToggle: PopoverView.HUDToggle(isPinned: { hud.isVisible }, toggle: { hud.toggle() }),
+            isPaused: { environment.engine.isPaused }
         ) }
         statusItem.applyReadout(environment.settings.settings.menuBarReadout, center: environment.metrics)
         self.hud = hud

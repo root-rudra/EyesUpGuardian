@@ -23,6 +23,7 @@ final class StatusItemController: NSObject {
     /// Set by the app delegate; pins or unpins the floating HUD.
     var onToggleHUD: (() -> Void)?
     var onIsHUDPinned: (() -> Bool)?
+    var onIsPaused: (() -> Bool)?
 
     init(controller: AwakeController) {
         self.controller = controller
@@ -92,9 +93,10 @@ final class StatusItemController: NSObject {
             button.title = title
             drawnTitle = title
         }
-        let toolTip = controller.isAwake
+        var toolTip = controller.isAwake
             ? "EyesUpGuardian: " + controller.holds.map(\.label).joined(separator: ", ")
             : "EyesUpGuardian: your Mac may sleep"
+        if onIsPaused?() == true { toolTip += " · triggers paused" }
         if drawnToolTip != toolTip {
             button.toolTip = toolTip
             drawnToolTip = toolTip

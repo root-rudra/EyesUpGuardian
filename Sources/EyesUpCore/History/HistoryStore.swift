@@ -8,6 +8,9 @@ public final class HistoryController {
     public private(set) var snapshot = HistorySnapshot()
     public private(set) var storeNotice: String?
 
+    /// Notices are dismissible: one bad launch shouldn't leave a permanent banner.
+    public func clearNotice() { storeNotice = nil }
+
     @ObservationIgnored private let store: JSONFileStore<HistorySnapshot>?
     @ObservationIgnored private let clock: any WallClock
 
