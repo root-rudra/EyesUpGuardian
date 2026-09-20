@@ -24,6 +24,7 @@ final class StatusItemController: NSObject {
     var onToggleHUD: (() -> Void)?
     var onIsHUDPinned: (() -> Bool)?
     var onIsPaused: (() -> Bool)?
+    var onShowAbout: (() -> Void)?
 
     init(controller: AwakeController) {
         self.controller = controller
@@ -169,6 +170,7 @@ final class StatusItemController: NSObject {
         menu.addItem(menuItem("Open Dashboard…", #selector(openDashboard)))
         menu.addItem(menuItem(onIsHUDPinned?() == true ? "Unpin HUD" : "Pin HUD", #selector(toggleHUD)))
         menu.addItem(.separator())
+        menu.addItem(menuItem("About EyesUpGuardian", #selector(showAbout)))
         menu.addItem(menuItem("Quit EyesUpGuardian", #selector(quit), key: "q"))
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
@@ -186,6 +188,8 @@ final class StatusItemController: NSObject {
     @objc private func stopAll() { controller.stopAll() }
     @objc private func openDashboard() { onOpenDashboard?() }
     @objc private func toggleHUD() { onToggleHUD?() }
+
+    @objc private func showAbout() { onShowAbout?() }
     @objc private func quit() { NSApp.terminate(nil) }
 }
 

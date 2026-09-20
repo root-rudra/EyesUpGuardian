@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: StatusItemController?
     private var dashboard: DashboardWindowController?
     private var hud: HUDWindowController?
+    private let about = AboutWindowController()
     private var headsUp: HeadsUpNotifier?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -48,6 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.onToggleHUD = { hud.toggle() }
         statusItem.onIsHUDPinned = { hud.isVisible }
         statusItem.onIsPaused = { environment.engine.isPaused }
+        statusItem.onShowAbout = { [about] in about.show() }
         statusItem.setPopoverContent { PopoverView(
             controller: environment.controller,
             onOpenDashboard: { dashboard.show() },

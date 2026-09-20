@@ -72,9 +72,14 @@ import Testing
     }
 
     @Test func assertionProbeExcludesOurOwnHolds() {
-        let probe = AssertionProbe(ownPID: getpid())
+        // Fed a fixed list: a real EyesUpGuardian running on this Mac is a different process
+        // holding its own assertion, and the probe is right to list that one.
+        let mine = SystemAssertion(pid: 4242, type: AssertionKind.preventIdleSystemSleep.ioKitType, name: "mine")
+        let theirs = SystemAssertion(pid: 4243, type: AssertionKind.preventIdleSystemSleep.ioKitType, name: "theirs")
+        let probe = AssertionProbe(ownPID: 4242, source: { [mine, theirs] })
         let others = probe.sample() ?? []
-        #expect(!others.contains { $0.processName == "EyesUpGuardian" })
+        #expect(others.count == 1)
+        #expect(others.first?.processName == "process 4243")
     }
 
     @Test func processEntriesCarryTheIdentityTheyWereSampledWith() throws {
