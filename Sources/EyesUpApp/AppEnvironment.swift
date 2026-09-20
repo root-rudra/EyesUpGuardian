@@ -24,6 +24,9 @@ final class AppEnvironment {
     /// Set by the app delegate: UI that must react to a settings change.
     var onSettingsChanged: ((AppSettings) -> Void)?
 
+    /// Set by the app delegate: show or hide the floating HUD.
+    var onToggleHUD: ((Bool) -> Void)?
+
     private var observers: [NSObjectProtocol] = []
     private var energySubscription: MetricsSubscription?
     private var energyTimer: Timer?

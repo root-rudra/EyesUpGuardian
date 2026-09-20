@@ -46,6 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let statusItem = StatusItemController(controller: environment.controller)
         statusItem.onOpenDashboard = { dashboard.show() }
         statusItem.onToggleHUD = { hud.toggle() }
+        statusItem.onIsHUDPinned = { hud.isVisible }
         statusItem.setPopoverContent { PopoverView(
             controller: environment.controller,
             onOpenDashboard: { dashboard.show() },
@@ -59,8 +60,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.applyReadout(environment.settings.settings.menuBarReadout, center: environment.metrics)
         self.hud = hud
         if environment.settings.settings.hudVisible { hud.show() }
-        environment.onSettingsChanged = { [weak statusItem] settings in
+        environment.onToggleHUD = { [weak hud] show in show ? hud?.show() : hud?.hide() }
+        environment.onSettingsChanged = { [weak statusItem, weak hud] settings in
             statusItem?.applyReadout(settings.menuBarReadout, center: environment.metrics)
+            hud?.applyClickThrough(settings.hudClickThrough)
         }
         self.dashboard = dashboard
         self.statusItem = statusItem

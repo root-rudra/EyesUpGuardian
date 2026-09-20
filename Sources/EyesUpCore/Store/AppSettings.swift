@@ -37,6 +37,22 @@ public struct HUDPosition: Codable, Equatable, Sendable {
     }
 }
 
+extension HUDPosition {
+    /// Pulls the panel to whichever corner it is closest to, so it always sits somewhere deliberate.
+    public func snapped(in screen: CGRect, size: CGSize, margin: Double) -> HUDPosition {
+        let left = Double(screen.minX) + margin
+        let right = Double(screen.maxX) - Double(size.width) - margin
+        let bottom = Double(screen.minY) + margin
+        let top = Double(screen.maxY) - Double(size.height) - margin
+        let centreX = x + Double(size.width) / 2
+        let centreY = y + Double(size.height) / 2
+        return HUDPosition(
+            x: centreX < Double(screen.midX) ? left : right,
+            y: centreY < Double(screen.midY) ? bottom : top
+        )
+    }
+}
+
 /// User settings (spec §8). Decoding tolerates missing keys so later versions can add fields
 /// without a schema bump, and out-of-range values fall back to their defaults.
 public struct AppSettings: Codable, Equatable, Sendable {
@@ -56,6 +72,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var menuBarReadout: MenuBarReadout
     public var hudVisible: Bool
     public var hudPosition: HUDPosition?
+    public var hudClickThrough: Bool
     /// Money per kilowatt-hour, in the system currency. nil means "don't show money at all".
     public var electricityRate: Double?
     public var presets: [TimeInterval]
@@ -72,6 +89,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         menuBarReadout: MenuBarReadout = .timer,
         hudVisible: Bool = false,
         hudPosition: HUDPosition? = nil,
+        hudClickThrough: Bool = false,
         electricityRate: Double? = nil,
         presets: [TimeInterval] = [900, 3600, 7200, 14400],
         headsUpLeadMinutes: Double = 5,
@@ -86,6 +104,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.menuBarReadout = menuBarReadout
         self.hudVisible = hudVisible
         self.hudPosition = hudPosition
+        self.hudClickThrough = hudClickThrough
         self.electricityRate = electricityRate
         self.presets = presets
         self.headsUpLeadMinutes = headsUpLeadMinutes
@@ -104,6 +123,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         menuBarReadout = (try? container.decodeIfPresent(MenuBarReadout.self, forKey: .menuBarReadout)) ?? .timer
         hudVisible = try container.decodeIfPresent(Bool.self, forKey: .hudVisible) ?? false
         hudPosition = try container.decodeIfPresent(HUDPosition.self, forKey: .hudPosition)
+        hudClickThrough = try container.decodeIfPresent(Bool.self, forKey: .hudClickThrough) ?? false
         electricityRate = try container.decodeIfPresent(Double.self, forKey: .electricityRate)
         presets = try container.decodeIfPresent([TimeInterval].self, forKey: .presets) ?? [900, 3600, 7200, 14400]
         headsUpLeadMinutes = try container.decodeIfPresent(Double.self, forKey: .headsUpLeadMinutes) ?? 5

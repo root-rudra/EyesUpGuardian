@@ -109,6 +109,19 @@ struct SettingsTab: View {
                         }
                     }
 
+                    Section("Floating HUD") {
+                        Toggle("Show the HUD", isOn: Binding(
+                            get: { settings.hudVisible },
+                            set: { on in environment.onToggleHUD?(on) }
+                        ))
+                        Toggle("Let clicks pass through it", isOn: Binding(
+                            get: { settings.hudClickThrough },
+                            set: { on in environment.settings.update { $0.hudClickThrough = on } }
+                        ))
+                        Text("The HUD floats above other apps and snaps to the nearest corner when you drag it.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+
                     Section("Shortcut") {
                         Toggle("Global shortcut (\(GlobalShortcut.description))", isOn: Binding(
                             get: { settings.globalShortcutEnabled },

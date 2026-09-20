@@ -2,11 +2,20 @@ import AppKit
 import EyesUpCore
 import SwiftUI
 
-/// The pinnable mini panel (spec §7.4): countdown plus a compact stat line, on every Space.
-/// Corner snapping, the hover fade and click-through are not implemented yet (see Plan 4).
+/// Tracked separately from the view so the fade survives a redraw (this project builds without
+/// Xcode, so SwiftUI's `@State` macro is unavailable).
+@MainActor
+@Observable
+final class HUDHoverState {
+    var isHovering = false
+}
+
+/// The pinnable mini panel (spec §7.4): a draining ring, the countdown and a compact stat line, on
+/// every Space. It fades when the pointer is elsewhere and snaps to the nearest corner when dragged.
 struct HUDView: View {
     let controller: AwakeController
     @Bindable var stats: StatsViewModel
+    @Bindable var hover: HUDHoverState
 
     var body: some View {
         // A per-second tick only earns its keep while a countdown is running: with no deadline the
@@ -20,13 +29,17 @@ struct HUDView: View {
         }
         .background(AmbientBackground(mood: controller.isAwake ? .awake : .idle))
         .clipShape(RoundedRectangle(cornerRadius: 14))
+        .opacity(hover.isHovering ? 1 : 0.4)
+        .animation(.easeInOut(duration: 0.2), value: hover.isHovering)
+        .onHover { hover.isHovering = $0 }
         .onAppear { stats.start() }
         .onDisappear { stats.stop() }
     }
 
     private func panel(now: Date) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: controller.isAwake ? "eye.fill" : "eye")
+            Image(nsImage: RingIcon.image(active: controller.isAwake, fraction: ringFraction(now: now)))
+                .renderingMode(.template)
                 .foregroundStyle(controller.isAwake ? .orange : .secondary)
             VStack(alignment: .leading, spacing: 1) {
                 Text(countdown(now: now))
@@ -37,6 +50,11 @@ struct HUDView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+
+    private func ringFraction(now: Date) -> Double? {
+        guard let until = controller.awakeUntil, let start = controller.sessionStart else { return nil }
+        return TimeFormatting.remainingFraction(now: now, start: start, end: until)
     }
 
     private func countdown(now: Date) -> String {
@@ -61,6 +79,9 @@ final class HUDWindowController {
     private let environment: AppEnvironment
     private var panel: NSPanel?
     private var stats: StatsViewModel?
+    private let hover = HUDHoverState()
+    private var moveObserver: NSObjectProtocol?
+    private var settleTimer: Timer?
 
     init(environment: AppEnvironment) {
         self.environment = environment
@@ -92,15 +113,27 @@ final class HUDWindowController {
         panel.isMovableByWindowBackground = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
-        panel.contentView = NSHostingView(rootView: HUDView(controller: environment.controller, stats: model))
-        place(panel)
-        panel.orderFrontRegardless()
+        panel.contentView = NSHostingView(rootView: HUDView(controller: environment.controller, stats: model, hover: hover))
         self.panel = panel
+        place(panel)
+        // A saved position from another display arrangement could leave it half off an edge.
+        snapToNearestCorner()
+        panel.ignoresMouseEvents = environment.settings.settings.hudClickThrough
+        moveObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didMoveNotification, object: panel, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.scheduleSnap() }
+        }
+        panel.orderFrontRegardless()
         environment.settings.update { $0.hudVisible = true }
     }
 
     func hide() {
         savePosition()
+        if let moveObserver { NotificationCenter.default.removeObserver(moveObserver) }
+        moveObserver = nil
+        settleTimer?.invalidate()
+        settleTimer = nil
         stats?.stop()
         stats = nil
         panel?.orderOut(nil)
@@ -113,6 +146,32 @@ final class HUDWindowController {
         guard let panel else { return }
         let origin = panel.frame.origin
         environment.settings.update { $0.hudPosition = HUDPosition(x: Double(origin.x), y: Double(origin.y)) }
+    }
+
+    /// `didMove` fires all through a drag, so the snap waits until the panel has been still for a
+    /// moment — the effect of letting go, without watching the mouse. The timer lives only while
+    /// the panel is actually moving.
+    private func scheduleSnap() {
+        settleTimer?.invalidate()
+        settleTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.snapToNearestCorner() }
+        }
+    }
+
+    /// Called when the panel stops moving: it always ends up in a corner, never half off an edge.
+    func snapToNearestCorner() {
+        settleTimer?.invalidate()
+        settleTimer = nil
+        guard let panel, let screen = panel.screen ?? NSScreen.main else { return }
+        let current = HUDPosition(x: Double(panel.frame.origin.x), y: Double(panel.frame.origin.y))
+        let snapped = current.snapped(in: screen.visibleFrame, size: panel.frame.size, margin: 20)
+        guard snapped != current else { return }
+        panel.setFrameOrigin(NSPoint(x: snapped.x, y: snapped.y))
+        environment.settings.update { $0.hudPosition = snapped }
+    }
+
+    func applyClickThrough(_ enabled: Bool) {
+        panel?.ignoresMouseEvents = enabled
     }
 
     private func place(_ panel: NSPanel) {

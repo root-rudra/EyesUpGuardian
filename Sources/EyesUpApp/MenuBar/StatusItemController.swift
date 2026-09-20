@@ -22,6 +22,7 @@ final class StatusItemController: NSObject {
     var onOpenDashboard: (() -> Void)?
     /// Set by the app delegate; pins or unpins the floating HUD.
     var onToggleHUD: (() -> Void)?
+    var onIsHUDPinned: (() -> Bool)?
 
     init(controller: AwakeController) {
         self.controller = controller
@@ -164,7 +165,7 @@ final class StatusItemController: NSObject {
         stop.isEnabled = controller.isAwake
         menu.addItem(stop)
         menu.addItem(menuItem("Open Dashboard…", #selector(openDashboard)))
-        menu.addItem(menuItem("Pin HUD", #selector(toggleHUD)))
+        menu.addItem(menuItem(onIsHUDPinned?() == true ? "Unpin HUD" : "Pin HUD", #selector(toggleHUD)))
         menu.addItem(.separator())
         menu.addItem(menuItem("Quit EyesUpGuardian", #selector(quit), key: "q"))
         statusItem.menu = menu

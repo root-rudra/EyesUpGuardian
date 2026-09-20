@@ -78,3 +78,8 @@ Run before every release. Each check needs a fresh `make app` build.
 - [ ] Press **⌃⌥⌘E** with another app focused: the menu-bar ring fills and `pmset -g assertions | grep EyesUpGuardian` shows a hold. Press it again: the ring empties and the line goes away.
 - [ ] Turning the Settings toggle off releases the key (another app can claim it); turning it back on reclaims it. If the key is already taken at launch, Settings says so in orange.
 - [ ] ⌘1–⌘5 switch dashboard tabs in sidebar order (Overview, Triggers, Processes, History, Settings).
+- [ ] Pin the HUD, drag it near the middle: it snaps to the nearest corner about a third of a second after you let go.
+- [ ] With the pointer elsewhere the HUD sits at 40% opacity; hovering fades it back to full.
+- [ ] With a timer running, the HUD's ring drains in step with the menu-bar one.
+- [ ] Settings → "Let clicks pass through it": clicks land on the window behind the HUD.
+- [ ] Right-clicking the menu-bar icon while the HUD is pinned reads **Unpin HUD**.

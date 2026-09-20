@@ -137,4 +137,21 @@ import Testing
         #expect(controller.settings.headsUpLeadMinutes == 5)
         #expect(controller.settings.presets == AppSettings().presets)
     }
+
+    @Test func hudPositionsSnapToTheNearestCorner() {
+        let screen = CGRect(x: 0, y: 0, width: 1000, height: 800)
+        let size = CGSize(width: 200, height: 60)
+        // Near the top-left, with a 20 pt margin.
+        #expect(HUDPosition(x: 60, y: 700).snapped(in: screen, size: size, margin: 20) == HUDPosition(x: 20, y: 720))
+        // Near the bottom-right.
+        #expect(HUDPosition(x: 900, y: 40).snapped(in: screen, size: size, margin: 20) == HUDPosition(x: 780, y: 20))
+        // Dead centre still lands in a corner rather than floating.
+        let centred = HUDPosition(x: 400, y: 370).snapped(in: screen, size: size, margin: 20)
+        #expect([20.0, 780.0].contains(centred.x))
+        #expect([20.0, 720.0].contains(centred.y))
+    }
+
+    @Test func clickThroughDefaultsToOff() {
+        #expect(!AppSettings().hudClickThrough)
+    }
 }
