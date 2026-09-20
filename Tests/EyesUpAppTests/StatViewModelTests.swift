@@ -43,9 +43,11 @@ import Testing
         let center = makeCenter()
         let model = StatsViewModel(center: center, ids: MenuBarReadout.timerCPUAndPower.metricIDs, interval: 2)
         model.start()
-        // CPU answers, power doesn't, so only the readable part shows.
-        #expect(model.readoutText(for: .timerCPUAndPower) == "20%")
-        #expect(model.readoutText(for: .timerAndCPU) == "20%")
+        // CPU answers, power doesn't, so only the readable part shows. (Padded to a fixed width,
+        // so the menu-bar item doesn't shuffle as the number changes.)
+        #expect(model.readoutText(for: .timerCPUAndPower).hasSuffix("20%"))
+        #expect(model.readoutText(for: .timerAndCPU).hasSuffix("20%"))
+        #expect(model.readoutText(for: .timerAndCPU).count == 4)
         #expect(model.readoutText(for: .timer) == "")
         model.stop()
     }
@@ -54,6 +56,17 @@ import Testing
         let model = StatsViewModel(center: center, ids: [.memory], interval: 1)
         model.start()
         #expect(model.tiles[1].value == StatFormatting.unavailable)
+        model.stop()
+    }
+
+    /// Menu-bar stats hold their width, so the item doesn't shuffle as the numbers change.
+    @Test func menuBarStatsAreHeldAtAFixedWidth() {
+        let center = makeCenter()
+        let model = StatsViewModel(center: center, ids: [.cpu, .memory], interval: 2)
+        model.start()
+        let text = model.readoutText(for: .timerAndCPU)
+        #expect(text.count == 4, "CPU should occupy four columns, got \"\(text)\"")
+        #expect(text.hasSuffix("%"))
         model.stop()
     }
 

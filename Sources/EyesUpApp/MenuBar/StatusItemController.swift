@@ -8,8 +8,10 @@ final class StatusItemController: NSObject {
     private let controller: AwakeController
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let popover = NSPopover()
-    private var minuteTimer: Timer?
+    private var countdownTimer: Timer?
     private var readout: MenuBarReadout = .timer
+    /// Spec §3: a per-second menu-bar update costs a re-layout a second, so it is the user's choice.
+    private var ticksEverySecond = true
     private var stats: StatsViewModel?
     private var statsTimer: Timer?
     private var makePopoverContent: (() -> AnyView)?
@@ -49,8 +51,13 @@ final class StatusItemController: NSObject {
     }
 
     /// Switches the readout. Stat readouts sample every 2 s (spec §3); the other two sample nothing.
-    func applyReadout(_ readout: MenuBarReadout, center: MetricsCenter) {
+    func applyReadout(_ readout: MenuBarReadout, center: MetricsCenter, ticksEverySecond: Bool = true) {
         self.readout = readout
+        if self.ticksEverySecond != ticksEverySecond {
+            self.ticksEverySecond = ticksEverySecond
+            countdownTimer?.invalidate()
+            countdownTimer = nil
+        }
         stats?.stop()
         statsTimer?.invalidate()
         statsTimer = nil
@@ -94,7 +101,8 @@ final class StatusItemController: NSObject {
             deadline: until,
             endless: controller.isHeldWithoutEnd,
             now: now,
-            stat: stats?.readoutText(for: readout) ?? ""
+            stat: stats?.readoutText(for: readout) ?? "",
+            ticking: ticksEverySecond
         )
         if drawnTitle != title {
             button.title = title
@@ -108,7 +116,7 @@ final class StatusItemController: NSObject {
             button.toolTip = toolTip
             drawnToolTip = toolTip
         }
-        updateMinuteTimer(needed: until != nil)
+        updateCountdownTimer(needed: until != nil)
     }
 
     // MARK: Observation and timing
@@ -124,18 +132,20 @@ final class StatusItemController: NSObject {
         }
     }
 
-    /// The readout changes once a minute, and only while a deadline exists (spec §3: no per-second background work).
-    private func updateMinuteTimer(needed: Bool) {
-        if needed, minuteTimer == nil {
-            let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in
+    /// Only while a deadline exists (spec §3: nothing ticks in the background at rest). The rate is
+    /// the user's: every second reads like a clock, every minute costs nothing to speak of.
+    private func updateCountdownTimer(needed: Bool) {
+        if needed, countdownTimer == nil {
+            let interval: TimeInterval = ticksEverySecond ? 1 : 60
+            let timer = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
                 MainActor.assumeIsolated { self?.refresh() }
             }
-            timer.tolerance = 5
+            timer.tolerance = ticksEverySecond ? 0.1 : 5
             RunLoop.main.add(timer, forMode: .common)
-            minuteTimer = timer
+            countdownTimer = timer
         } else if !needed {
-            minuteTimer?.invalidate()
-            minuteTimer = nil
+            countdownTimer?.invalidate()
+            countdownTimer = nil
         }
     }
 

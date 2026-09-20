@@ -73,22 +73,24 @@ final class StatsViewModel {
     }
 
     /// The menu-bar suffix, e.g. "12% · 38.4 W". Stats that aren't readable are left out entirely.
+    /// Stats for the menu bar, each held at a fixed width so the item — and every icon beside it —
+    /// stays put as the numbers change. See `MenuBarTitle.padded`.
     func readoutText(for readout: MenuBarReadout) -> String {
         var parts: [String] = []
         if readout.metricIDs.contains(.cpu), let cpu = snapshot.cpu {
-            parts.append(StatFormatting.percent(cpu.total))
+            parts.append(MenuBarTitle.padded(StatFormatting.percent(cpu.total), to: 4))
         }
         if readout.metricIDs.contains(.memory), let memory = snapshot.memory {
-            parts.append(StatFormatting.bytes(memory.usedBytes))
+            parts.append(MenuBarTitle.padded(StatFormatting.bytes(memory.usedBytes), to: 7))
         }
         if readout.metricIDs.contains(.power), let power = snapshot.power {
-            parts.append(StatFormatting.watts(power.watts))
+            parts.append(MenuBarTitle.padded(StatFormatting.watts(power.watts), to: 6))
         }
         if readout.metricIDs.contains(.temperature), let temperature = snapshot.temperature {
-            parts.append(StatFormatting.celsius(temperature.celsius))
+            parts.append(MenuBarTitle.padded(StatFormatting.celsius(temperature.celsius), to: 5))
         }
         if readout.metricIDs.contains(.network), let network = snapshot.network {
-            parts.append("↓" + StatFormatting.rate(network.inBytesPerSecond))
+            parts.append(MenuBarTitle.padded("↓" + StatFormatting.rate(network.inBytesPerSecond), to: 10))
         }
         // A readout that promised a stat says so plainly when this Mac can't answer.
         if parts.isEmpty, !readout.metricIDs.isEmpty { return StatFormatting.unavailable }

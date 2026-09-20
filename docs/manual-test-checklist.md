@@ -4,7 +4,9 @@ Run before every release. Each check needs a fresh `make app` build.
 
 ## Menu bar
 - [ ] Idle: faint ring, no time shown.
-- [ ] Timer running: ring drains over time; readout `h:mm`, or `Nm` under an hour; it updates each minute.
+- [ ] Timer running: ring drains over time; the time counts down every second (`12:45`, `1:45:03`).
+- [ ] The menu-bar item does not change width as the digits change, and the icons beside it stay put.
+- [ ] Settings → Menu bar → "Count down every second" off: whole minutes (`13m`), updating once a minute.
 - [ ] Indefinite: full ring, reads **∞**.
 - [ ] A timer running *while a trigger also holds*: the countdown still shows, followed by **∞**
       (regression — a trigger used to blank every countdown in the app).

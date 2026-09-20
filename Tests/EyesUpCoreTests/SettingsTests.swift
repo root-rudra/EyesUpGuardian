@@ -225,4 +225,11 @@ import Testing
         settings.dashboardTab = "processes"
         #expect(settings.validated().dashboardTab == "processes")
     }
+    @Test func theMenuBarClockIsOnByDefaultAndSurvivesARoundTrip() throws {
+        #expect(AppSettings().menuBarTicksEverySecond)
+        var settings = AppSettings()
+        settings.menuBarTicksEverySecond = false
+        let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))
+        #expect(!decoded.menuBarTicksEverySecond)
+    }
 }

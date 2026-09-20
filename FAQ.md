@@ -123,9 +123,11 @@ when your Mac actually slept and woke.
 line. It snaps to a corner, fades when your pointer is elsewhere, and can let clicks pass through.
 
 **Menu bar:** the icon alone, the time left, or the time plus CPU, memory, power, temperature or
-network. A countdown followed by **∞** — "45m ∞" — means your session ends then, but something else
-(a trigger, or an indefinite session) keeps the Mac awake afterwards. **∞** on its own means nothing
-currently has an end.
+network. The time counts down like a clock — `12:45`, `1:45:03` — and holds a fixed width, so the
+icons beside it never shuffle. A countdown followed by **∞** means your session ends then, but
+something else (a trigger, or an indefinite session) keeps the Mac awake afterwards; **∞** on its
+own means nothing currently has an end. Settings → Menu bar can count in whole minutes instead,
+which costs nothing measurable at all.
 
 ### Which stats need special hardware?
 
@@ -144,6 +146,7 @@ Measured on the reference Mac (M3 Ultra Mac Studio, macOS 26) with `make perf`, 
 | What's on screen | CPU | Memory |
 |---|---|---|
 | Menu bar only, default settings | **0.000–0.017%** of one core | **17 MB** |
+| Menu bar, clock ticking while a session runs | 0.5–0.7% | 17 MB |
 | HUD pinned + CPU and power in the menu bar | 0.75% | 21 MB |
 | Dashboard open, Overview | 1.5–1.7% | 35 MB |
 | Dashboard open, Processes (5 s refresh) | 1.3% | 56 MB |

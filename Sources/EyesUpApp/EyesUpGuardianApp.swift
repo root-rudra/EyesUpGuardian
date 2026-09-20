@@ -61,12 +61,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onHUDToggle: PopoverView.HUDToggle(isPinned: { hud.isVisible }, toggle: { hud.toggle() }),
             isPaused: { environment.engine.isPaused }
         ) }
-        statusItem.applyReadout(environment.settings.settings.menuBarReadout, center: environment.metrics)
+        statusItem.applyReadout(environment.settings.settings.menuBarReadout, center: environment.metrics,
+                                ticksEverySecond: environment.settings.settings.menuBarTicksEverySecond)
         self.hud = hud
         if environment.settings.settings.hudVisible { hud.show() }
         environment.onToggleHUD = { [weak hud] show in show ? hud?.show() : hud?.hide() }
         environment.onSettingsChanged = { [weak statusItem, weak hud] settings in
-            statusItem?.applyReadout(settings.menuBarReadout, center: environment.metrics)
+            statusItem?.applyReadout(settings.menuBarReadout, center: environment.metrics,
+                                     ticksEverySecond: settings.menuBarTicksEverySecond)
             hud?.applyClickThrough(settings.hudClickThrough)
         }
         self.dashboard = dashboard

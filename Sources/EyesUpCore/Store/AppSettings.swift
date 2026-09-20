@@ -108,6 +108,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// caffeinate -s: prevent sleep only while on AC power.
     public var onlyOnACPower: Bool
     /// Which dashboard tab to open on, by its own identifier. Unknown values fall back.
+    /// Count the menu-bar time down every second instead of every minute. It costs CPU only while
+    /// a session is actually running — the menu bar re-lays out on every change.
+    public var menuBarTicksEverySecond: Bool
     public var dashboardTab: String
     /// How often the process table re-reads the process list, in seconds. Activity Monitor's own
     /// default is 5 s, and it is the difference between about 1% of a core and about 4%.
@@ -134,6 +137,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         trackEnergy: Bool = true,
         keepDiskAwake: Bool = false,
         onlyOnACPower: Bool = false,
+        menuBarTicksEverySecond: Bool = true,
         dashboardTab: String = "overview",
         processRefreshSeconds: Double = 5,
         processFont: TableFont = .system,
@@ -156,6 +160,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.trackEnergy = trackEnergy
         self.keepDiskAwake = keepDiskAwake
         self.onlyOnACPower = onlyOnACPower
+        self.menuBarTicksEverySecond = menuBarTicksEverySecond
         self.dashboardTab = dashboardTab
         self.processRefreshSeconds = processRefreshSeconds
         self.processFont = processFont
@@ -182,6 +187,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         trackEnergy = try container.decodeIfPresent(Bool.self, forKey: .trackEnergy) ?? true
         keepDiskAwake = try container.decodeIfPresent(Bool.self, forKey: .keepDiskAwake) ?? false
         onlyOnACPower = try container.decodeIfPresent(Bool.self, forKey: .onlyOnACPower) ?? false
+        menuBarTicksEverySecond = try container.decodeIfPresent(Bool.self, forKey: .menuBarTicksEverySecond) ?? true
         dashboardTab = try container.decodeIfPresent(String.self, forKey: .dashboardTab) ?? "overview"
         processRefreshSeconds = try container.decodeIfPresent(Double.self, forKey: .processRefreshSeconds) ?? 5
         processFont = (try? container.decodeIfPresent(TableFont.self, forKey: .processFont)) ?? .system

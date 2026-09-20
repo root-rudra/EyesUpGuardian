@@ -37,7 +37,13 @@ struct SettingsTab: View {
                                 Text(readout.title).tag(readout)
                             }
                         }
-                        Text("Stats in the menu bar refresh every 2 seconds. With \"Icon only\" or \"Icon and time left\", nothing is measured at all.")
+                        Toggle("Count down every second", isOn: Binding(
+                            get: { settings.menuBarTicksEverySecond },
+                            set: { on in environment.settings.update { $0.menuBarTicksEverySecond = on } }
+                        ))
+                        Text("On, the time reads like a clock (12:45). Off, it shows whole minutes (13m) and the menu bar redraws once a minute instead of once a second. Either way nothing ticks while no session is running.")
+                            .font(.caption).foregroundStyle(.secondary)
+                                                Text("Stats in the menu bar refresh every 2 seconds. With \"Icon only\" or \"Icon and time left\", nothing is measured at all.")
                             .font(.caption).foregroundStyle(.secondary)
                     }
 
