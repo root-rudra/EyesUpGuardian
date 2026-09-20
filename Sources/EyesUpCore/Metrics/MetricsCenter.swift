@@ -29,8 +29,11 @@ public final class MetricsSubscription {
     }
 }
 
-/// Samples the union of what's subscribed, at the fastest interval asked for, and nothing at all
-/// when nobody is looking (spec §3.1, §6.1).
+/// Samples what's subscribed — each metric at its own cadence — and nothing at all when nobody is
+/// looking (spec §3.1, §6.1).
+///
+/// Cadence is per metric, not per tick: the process list is by far the most expensive thing here,
+/// and a menu-bar readout asking for CPU every two seconds must not drag it along at that rate.
 @MainActor
 @Observable
 public final class MetricsCenter {
@@ -48,6 +51,8 @@ public final class MetricsCenter {
     @ObservationIgnored private var subscriptions: [UUID: (ids: Set<MetricID>, interval: TimeInterval)] = [:]
     @ObservationIgnored private var histories: [MetricID: [Double]] = [:]
     @ObservationIgnored private var task: (any ScheduledTask)?
+    /// When each metric may next be sampled.
+    @ObservationIgnored private var nextDue: [MetricID: Date] = [:]
 
     public init(
         probes: any MetricsProbing,
@@ -64,6 +69,13 @@ public final class MetricsCenter {
     public func subscribe(_ ids: Set<MetricID>, interval: TimeInterval) -> MetricsSubscription {
         let subscription = MetricsSubscription(ids: ids, interval: max(0.5, interval), center: self)
         subscriptions[subscription.id] = (ids, subscription.interval)
+        // A metric nobody was watching is sampled at once, so a surface opens with numbers on it.
+        // One already being sampled keeps its place in the cycle, pulled in if this subscriber
+        // asked for it faster.
+        let soon = clock.now.addingTimeInterval(subscription.interval)
+        for id in ids {
+            if let due = nextDue[id] { nextDue[id] = min(due, soon) }
+        }
         sampleNow()
         return subscription
     }
@@ -76,6 +88,8 @@ public final class MetricsCenter {
     /// After a wake or a clock change: drop stale baselines and take a fresh sample.
     public func refresh() {
         histories.removeAll()
+        // A wake invalidates every reading, whatever its cadence.
+        nextDue.removeAll()
         // resetBaselines takes the probe lock, so it belongs on the sampling queue: a wake must
         // never stall the main actor for the length of a sample.
         let probes = probes
@@ -92,6 +106,8 @@ public final class MetricsCenter {
 
     func remove(subscriptionID: UUID) {
         subscriptions[subscriptionID] = nil
+        let wanted = requestedIDs
+        nextDue = nextDue.filter { wanted.contains($0.key) }
         if subscriptions.isEmpty {
             task?.cancel()
             task = nil
@@ -108,11 +124,30 @@ public final class MetricsCenter {
         subscriptions.values.map(\.interval).min() ?? 1
     }
 
+    /// The fastest rate anyone asked this metric for.
+    private func interval(for id: MetricID) -> TimeInterval {
+        subscriptions.values.filter { $0.ids.contains(id) }.map(\.interval).min() ?? interval
+    }
+
+    /// Timers fire a little late, so a metric a hair short of due is counted as due rather than
+    /// waiting a whole extra cycle.
+    private static let dueSlack: TimeInterval = 0.05
+
     private func sampleNow() {
         task?.cancel()
         task = nil
-        let ids = requestedIDs
-        guard !ids.isEmpty else { return }
+        guard !subscriptions.isEmpty else { return }
+
+        let now = clock.now
+        let ids = requestedIDs.filter { id in
+            guard let due = nextDue[id] else { return true }
+            return due <= now.addingTimeInterval(Self.dueSlack)
+        }
+        guard !ids.isEmpty else {
+            rearm()
+            return
+        }
+        for id in ids { nextDue[id] = now.addingTimeInterval(interval(for: id)) }
 
         let probes = probes
         executor.run({ probes.sample(ids) }) { [weak self] fresh in
@@ -127,7 +162,11 @@ public final class MetricsCenter {
             task = nil
             return
         }
-        task = scheduler.schedule(at: clock.now.addingTimeInterval(interval)) { [weak self] in self?.sampleNow() }
+        // Wake when the soonest metric is next due, not on a fixed tick.
+        let wanted = requestedIDs
+        let soonest = wanted.compactMap { nextDue[$0] }.min() ?? clock.now.addingTimeInterval(interval)
+        let at = max(soonest, clock.now.addingTimeInterval(min(interval, 0.5)))
+        task = scheduler.schedule(at: at) { [weak self] in self?.sampleNow() }
     }
 
     private func apply(_ fresh: MetricsSnapshot, requested: Set<MetricID>) {

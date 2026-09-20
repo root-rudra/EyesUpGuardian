@@ -34,7 +34,9 @@ import Testing
         let center = makeCenter()
         let first = center.subscribe([.cpu], interval: 1)
         let second = center.subscribe([.memory, .power], interval: 5)
-        #expect(probes.lastRequested == [.cpu, .memory, .power])
+        // Only the newly wanted metrics: CPU was sampled a moment ago and isn't due again yet.
+        #expect(probes.lastRequested == [.memory, .power])
+        #expect(center.snapshot.cpu != nil)
 
         second.cancel()
         clock.advance(1)
@@ -118,5 +120,42 @@ import Testing
         executor.runPending()
         #expect(probes.resetCount == 1)
         subscription.cancel()
+    }
+    /// Each metric keeps its own cadence. Without this, one surface asking for CPU every second
+    /// drags the process table — the most expensive probe there is — to once a second with it.
+    @Test func aSlowMetricIsNotPulledAlongByAFastOne() {
+        let center = makeCenter()
+        let fast = center.subscribe([.cpu], interval: 1)
+        let slow = center.subscribe([.processes], interval: 5)
+        #expect(probes.lastRequested == [.processes]) // a metric nobody was watching samples at once
+
+        for _ in 0..<4 {
+            clock.advance(1)
+            scheduler.runDue(at: clock.now)
+            #expect(probes.lastRequested == [.cpu], "the process list was sampled early")
+        }
+
+        clock.advance(1) // five seconds since the last process sample
+        scheduler.runDue(at: clock.now)
+        #expect(probes.lastRequested == [.cpu, .processes])
+
+        fast.cancel()
+        slow.cancel()
+    }
+
+    @Test func aMetricKeepsItsLastValueBetweenItsOwnSamples() {
+        let center = makeCenter()
+        let fast = center.subscribe([.cpu], interval: 1)
+        let slow = center.subscribe([.network], interval: 5)
+        #expect(center.snapshot.network != nil)
+
+        clock.advance(1)
+        scheduler.runDue(at: clock.now)
+        // Network wasn't due, so it must still read what it last read — not blank out.
+        #expect(center.snapshot.network != nil)
+        #expect(center.snapshot.cpu != nil)
+
+        fast.cancel()
+        slow.cancel()
     }
 }

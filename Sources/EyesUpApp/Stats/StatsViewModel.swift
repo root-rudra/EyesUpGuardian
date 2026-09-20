@@ -17,7 +17,7 @@ final class StatsViewModel {
 
     private let center: MetricsCenter
     private let ids: Set<MetricID>
-    private let interval: TimeInterval
+    private(set) var interval: TimeInterval
     @ObservationIgnored private var subscription: MetricsSubscription?
 
     init(center: MetricsCenter, ids: Set<MetricID>, interval: TimeInterval) {
@@ -38,6 +38,15 @@ final class StatsViewModel {
     func stop() {
         subscription?.cancel()
         subscription = nil
+    }
+
+    /// Changes how often this surface samples, resubscribing only if it is already running.
+    func setInterval(_ newInterval: TimeInterval) {
+        guard newInterval != interval else { return }
+        interval = newInterval
+        guard subscription != nil else { return }
+        subscription?.cancel()
+        subscription = center.subscribe(ids, interval: newInterval)
     }
 
     /// The popover's four tiles: CPU, memory, power (temperature when watts aren't readable), uptime.

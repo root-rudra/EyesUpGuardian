@@ -5,8 +5,20 @@ struct Sparkline: View {
     let values: [Double]
     var tint: Color = .orange
 
+    /// More points than this can't be told apart at the width these charts are drawn, and every
+    /// extra one is a line segment re-stroked every second.
+    static let maxPoints = 120
+
+    /// Keeps the newest sample and spreads the rest evenly.
+    static func drawable(_ values: [Double]) -> [Double] {
+        guard values.count > maxPoints else { return values }
+        let stride = Double(values.count - 1) / Double(maxPoints - 1)
+        return (0..<maxPoints).map { values[Int((Double($0) * stride).rounded())] }
+    }
+
     var body: some View {
         GeometryReader { geometry in
+            let values = Self.drawable(values)
             if values.count > 1 {
                 let highest = max(values.max() ?? 1, 0.0001)
                 let step = geometry.size.width / CGFloat(values.count - 1)

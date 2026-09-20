@@ -101,6 +101,8 @@ final class FakeInspector: ProcessInspecting, @unchecked Sendable {
     var cpuSecondsByPID: [Int32: Double] = [:]
     var allPIDs: [Int32] = []
     var paths: [Int32: String] = [:]
+    private(set) var pathLookups = 0
+    func countPathLookup() { pathLookups += 1 }
     func identity(of pid: Int32) -> ProcessIdentity? { identities[pid] }
     func name(of pid: Int32) -> String? { names[pid] }
 }

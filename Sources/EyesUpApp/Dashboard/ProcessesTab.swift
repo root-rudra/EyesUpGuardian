@@ -2,61 +2,92 @@ import AppKit
 import EyesUpCore
 import SwiftUI
 
-enum ProcessSort: String, CaseIterable, Identifiable {
-    case cpu, memory, name
+/// Which processes the table is showing. "All" groups them; a single origin lists them flat.
+enum ProcessScope: String, CaseIterable, Identifiable {
+    case all, macOS, installed
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .cpu: "CPU"
-        case .memory: "Memory"
-        case .name: "Name"
+        case .all: "All"
+        case .macOS: "macOS"
+        case .installed: "Installed"
         }
     }
+
+    var origin: ProcessOrigin? {
+        switch self {
+        case .all: nil
+        case .macOS: .macOS
+        case .installed: .installed
+        }
+    }
+}
+
+/// One group of rows under its own header.
+struct ProcessGroup: Identifiable {
+    let origin: ProcessOrigin
+    let entries: [ProcessEntry]
+    var id: String { origin.rawValue }
 }
 
 @MainActor
 @Observable
 final class ProcessesState {
     var filter = ""
-    var sort: ProcessSort = .cpu
+    var scope: ProcessScope = .all
+    var sortOrder = [KeyPathComparator(\ProcessEntry.cpuPercent, order: .reverse)]
+    var selection: ProcessEntry.ID?
+    /// Right-click the table's header to show or hide columns, as macOS tables do.
+    var columns = TableColumnCustomization<ProcessEntry>()
     var confirmingQuit: ProcessEntry?
     var forceQuit = false
     var message: String?
 }
 
-/// The dense "Mission Control" table (spec §7.3).
+extension ProcessEntry {
+    /// A sortable owner column: "You" before "System" when sorted ascending.
+    var ownerLabel: String { isOwn ? "You" : "System" }
+}
+
+/// The process table (spec §7.3), laid out the way macOS lays out a list of things: a native table
+/// with sortable column headers, the real app icons, and rows grouped by where the process came from.
 struct ProcessesTab: View {
     let environment: AppEnvironment
     @Bindable var stats: StatsViewModel
     @Bindable var state: ProcessesState
 
-    private var entries: [ProcessEntry] {
-        let all = stats.snapshot.processes ?? []
-        let filtered = state.filter.isEmpty
-            ? all
-            : all.filter { $0.name.localizedCaseInsensitiveContains(state.filter) || String($0.pid).contains(state.filter) }
-        return switch state.sort {
-        case .cpu: filtered.sorted { $0.cpuPercent > $1.cpuPercent }
-        case .memory: filtered.sorted { $0.memoryBytes > $1.memoryBytes }
-        case .name: filtered.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    private var settings: AppSettings { environment.settings.settings }
+
+    private var rowFont: Font {
+        let size = settings.processFontSize
+        return switch settings.processFont {
+        case .system: .system(size: size)
+        case .rounded: .system(size: size, design: .rounded)
+        case .monospaced: .system(size: size, design: .monospaced)
         }
     }
+
+    private var entries: [ProcessEntry] {
+        ProcessTableModel.rows(from: stats.snapshot.processes ?? [], scope: state.scope,
+                               filter: state.filter, sortOrder: state.sortOrder)
+    }
+
+    private var groups: [ProcessGroup] { ProcessTableModel.groups(of: entries) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
             table
-            if let message = state.message {
-                Label(message, systemImage: "info.circle")
-                    .font(.caption).foregroundStyle(.secondary).padding(8)
-            }
+            if let message = state.message { notice(message) }
         }
-        .background(Color(nsColor: .textBackgroundColor).opacity(0.7))
-        .font(.system(size: 11, design: .monospaced))
-        .onAppear { stats.start() }
+        .background(Color(nsColor: .controlBackgroundColor))
+        .onAppear {
+            stats.setInterval(settings.processRefreshSeconds)
+            stats.start()
+        }
         .onDisappear { stats.stop() }
         .confirmationDialog(
             state.confirmingQuit.map { "\(state.forceQuit ? "Force quit" : "Quit") \($0.name) (PID \($0.pid))?" } ?? "",
@@ -72,21 +103,74 @@ struct ProcessesTab: View {
         }
     }
 
+    // MARK: Header
+
     private var header: some View {
-        HStack(spacing: 12) {
-            Text("Processes").font(.system(size: 13, weight: .semibold))
-            Text(summary).foregroundStyle(.secondary)
-            Spacer()
-            Picker("Sort", selection: $state.sort) {
-                ForEach(ProcessSort.allCases) { sort in Text(sort.title).tag(sort) }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("Processes").font(.title3.bold())
+                Text(summary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                Spacer()
             }
-            .pickerStyle(.segmented)
-            .fixedSize()
-            TextField("Filter", text: $state.filter)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 160)
+            HStack(spacing: 10) {
+                Picker("Show", selection: $state.scope) {
+                    ForEach(ProcessScope.allCases) { scope in Text(scope.title).tag(scope) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .fixedSize()
+                Spacer()
+                refreshPicker
+                searchField
+            }
         }
-        .padding(10)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.bar)
+    }
+
+    /// Activity Monitor keeps this in its View menu; here it sits with the table it governs, because
+    /// it is the one control that decides what this tab costs while it is open.
+    private var refreshPicker: some View {
+        Picker("Update", selection: Binding(
+            get: { settings.processRefreshSeconds },
+            set: { seconds in
+                environment.settings.update { $0.processRefreshSeconds = seconds }
+                stats.setInterval(seconds)
+            }
+        )) {
+            ForEach(AppSettings.processRefreshChoices, id: \.self) { seconds in
+                Text("\(Int(seconds))s").tag(seconds)
+            }
+        }
+        .pickerStyle(.menu)
+        .fixedSize()
+        .help("How often this table re-reads the process list. 5 seconds is what Activity Monitor uses; 1 second costs about four times as much CPU.")
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            TextField("Search", text: $state.filter)
+                .textFieldStyle(.plain)
+            if !state.filter.isEmpty {
+                Button {
+                    state.filter = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear the search")
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(nsColor: .separatorColor)))
+        .frame(width: 220)
     }
 
     private var summary: String {
@@ -97,40 +181,143 @@ struct ProcessesTab: View {
         return "\(shown.count) shown · \(threads) threads · \(loadText)"
     }
 
+    // MARK: Table
+
     private var table: some View {
-        ScrollView {
-            LazyVStack(spacing: 0) {
-                row(name: "NAME", pid: "PID", cpu: "CPU%", memory: "MEM", threads: "THR", user: "USER")
-                    .foregroundStyle(.secondary)
-                ForEach(entries) { entry in
-                    row(name: entry.name, pid: String(entry.pid),
-                        cpu: String(format: "%.1f", entry.cpuPercent),
-                        memory: StatFormatting.bytes(entry.memoryBytes),
-                        threads: String(entry.threads),
-                        user: entry.isOwn ? "you" : "sys")
-                    .contentShape(Rectangle())
-                    .contextMenu { menu(for: entry) }
+        Table(of: ProcessEntry.self, selection: $state.selection, sortOrder: $state.sortOrder,
+              columnCustomization: $state.columns) {
+            TableColumn("Process Name", value: \.name) { entry in
+                HStack(spacing: 6) {
+                    icon(for: entry)
+                    Text(entry.name).lineLimit(1).truncationMode(.middle)
                 }
+                .font(rowFont)
+            }
+            .width(min: 180, ideal: 260)
+            .customizationID("name")
+
+            TableColumn("% CPU", value: \.cpuPercent) { entry in
+                Text(String(format: "%.1f", entry.cpuPercent))
+                    .font(rowFont)
+                    .monospacedDigit()
+                    .foregroundStyle(entry.cpuPercent >= 50 ? Color.orange : .primary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 56, ideal: 64)
+            .customizationID("cpu")
+
+            TableColumn("Memory", value: \.memoryBytes) { entry in
+                Text(StatFormatting.bytes(entry.memoryBytes))
+                    .font(rowFont)
+                    .monospacedDigit()
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 72, ideal: 84)
+            .customizationID("memory")
+
+            TableColumn("Threads", value: \.threads) { entry in
+                Text(String(entry.threads))
+                    .font(rowFont)
+                    .monospacedDigit()
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 56, ideal: 64)
+            .customizationID("threads")
+
+            TableColumn("PID", value: \.pid) { entry in
+                Text(String(entry.pid))
+                    .font(rowFont)
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+            .width(min: 56, ideal: 64)
+            .customizationID("pid")
+
+            TableColumn("User", value: \.ownerLabel) { entry in
+                Text(entry.ownerLabel)
+                    .font(rowFont)
+                    .foregroundStyle(.secondary)
+            }
+            .width(min: 60, ideal: 70)
+            .customizationID("user")
+
+            // Off by default: with "All" selected the rows are already under their own headings.
+            TableColumn("Kind", value: \.origin.rawValue) { entry in
+                Label(entry.origin.title, systemImage: entry.origin.symbol)
+                    .font(rowFont)
+                    .foregroundStyle(.secondary)
+            }
+            .width(min: 80, ideal: 100)
+            .customizationID("kind")
+            .defaultVisibility(.hidden)
+        } rows: {
+            if state.scope == .all {
+                ForEach(groups) { group in
+                    Section {
+                        ForEach(group.entries) { TableRow($0) }
+                    } header: {
+                        groupHeader(group)
+                    }
+                }
+            } else {
+                ForEach(entries) { TableRow($0) }
+            }
+        }
+        .tableStyle(.inset(alternatesRowBackgrounds: true))
+        .contextMenu(forSelectionType: ProcessEntry.ID.self) { ids in
+            if let entry = entries.first(where: { ids.contains($0.id) }) {
+                menu(for: entry)
             }
         }
     }
 
-    private func row(name: String, pid: String, cpu: String, memory: String, threads: String, user: String) -> some View {
-        HStack(spacing: 8) {
-            Text(name).frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
-            Text(pid).frame(width: 60, alignment: .trailing)
-            Text(cpu).frame(width: 60, alignment: .trailing)
-            Text(memory).frame(width: 80, alignment: .trailing)
-            Text(threads).frame(width: 45, alignment: .trailing)
-            Text(user).frame(width: 40, alignment: .trailing).foregroundStyle(.secondary)
+    private func groupHeader(_ group: ProcessGroup) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: group.origin.symbol)
+            Text(group.origin.title)
+            Text("\(group.entries.count)")
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 2)
+        .font(.system(size: 11, weight: .semibold))
+        .help(group.origin == .macOS
+              ? "Shipped with macOS, from the protected system volume"
+              : group.origin == .installed ? "Installed on this Mac" : "The path isn't readable — another user's process, or the kernel")
     }
 
     @ViewBuilder
+    private func icon(for entry: ProcessEntry) -> some View {
+        if let image = ProcessIcons.icon(forExecutable: entry.executablePath) {
+            Image(nsImage: image).resizable().frame(width: 16, height: 16)
+        } else {
+            Image(systemName: entry.origin.symbol)
+                .frame(width: 16, height: 16)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func notice(_ message: String) -> some View {
+        HStack {
+            Label(message, systemImage: "info.circle")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button("Dismiss") { state.message = nil }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.bar)
+    }
+
+    // MARK: Actions
+
+    @ViewBuilder
     private func menu(for entry: ProcessEntry) -> some View {
-        Button("Keep awake until this exits") { watch(entry) }
+        Button("Keep Awake Until This Exits") { watch(entry) }
         Button("Copy PID") {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(String(entry.pid), forType: .string)
@@ -161,7 +348,9 @@ struct ProcessesTab: View {
     }
 
     private func reveal(_ entry: ProcessEntry) {
-        guard let path = LibprocInspector().executablePath(of: entry.pid) else {
+        // The path sampled with the row, so this reveals the process the user right-clicked even if
+        // that PID has been recycled since.
+        guard let path = entry.executablePath else {
             state.message = "That process's location isn't readable."
             return
         }

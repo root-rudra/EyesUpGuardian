@@ -5,6 +5,8 @@ import SwiftUI
 struct OverviewTab: View {
     let environment: AppEnvironment
     @Bindable var stats: StatsViewModel
+    /// The same snapshot, claimed at a slower cadence: see DashboardState for why.
+    @Bindable var slowStats: StatsViewModel
 
     private var snapshot: MetricsSnapshot { stats.snapshot }
 
@@ -18,8 +20,14 @@ struct OverviewTab: View {
             }
             .padding(20)
         }
-        .onAppear { stats.start() }
-        .onDisappear { stats.stop() }
+        .onAppear {
+            stats.start()
+            slowStats.start()
+        }
+        .onDisappear {
+            stats.stop()
+            slowStats.stop()
+        }
     }
 
     private var headline: some View {

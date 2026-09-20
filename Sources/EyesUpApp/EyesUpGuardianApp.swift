@@ -95,6 +95,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Opening the app again while it is running (from Finder, Spotlight or `open -a`) shows the
+    /// dashboard. Without this, launching a menu-bar app a second time appears to do nothing.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        dashboard?.show()
+        return true
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         hud?.savePosition()
         environment?.shutdown()

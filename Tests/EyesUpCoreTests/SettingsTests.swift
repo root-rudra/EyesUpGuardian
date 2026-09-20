@@ -195,4 +195,27 @@ import Testing
         let decoded = try! JSONDecoder().decode(AppSettings.self, from: encoded)
         #expect(!decoded.trackEnergy)
     }
+    @Test func theProcessTableFontDefaultsToTheSystemFontAndIsRangeChecked() {
+        #expect(AppSettings().processFont == .system)
+        #expect(AppSettings().processFontSize == 12)
+
+        var settings = AppSettings()
+        settings.processFontSize = 400
+        #expect(settings.validated().processFontSize == 12)
+        settings.processFontSize = .nan
+        #expect(settings.validated().processFontSize == 12)
+        settings.processFontSize = 14
+        #expect(settings.validated().processFontSize == 14)
+    }
+    /// The refresh rate is what keeps the Processes tab inside the 1.5% budget for a visible
+    /// surface: 5 s measures 1.2% of a core on the reference Mac, 2 s measures 4.3%.
+    @Test func theProcessRefreshRateDefaultsToFiveSecondsAndIsRangeChecked() {
+        #expect(AppSettings().processRefreshSeconds == 5)
+
+        var settings = AppSettings()
+        settings.processRefreshSeconds = 0.01
+        #expect(settings.validated().processRefreshSeconds == 5)
+        settings.processRefreshSeconds = 1
+        #expect(settings.validated().processRefreshSeconds == 1)
+    }
 }

@@ -134,4 +134,42 @@ import Testing
         #expect(CPUProbe.unsignedTick(Int32.min) == UInt64(UInt32(Int32.max) + 1))
         #expect(CPUProbe.unsignedTick(1234) == 1234)
     }
+    @Test func sampledRowsCarryWhereTheProcessCameFrom() {
+        let clock = FakeClock()
+        let inspector = FakeInspector()
+        inspector.allPIDs = [1, 2]
+        for pid in [Int32(1), 2] {
+            inspector.identities[pid] = ProcessIdentity(pid: pid, startTime: UInt64(pid))
+            inspector.details[pid] = ProcessDetails(name: "p\(pid)", cpuSeconds: 1, memoryBytes: 1, threads: 1,
+                                                    uid: getuid(),
+                                                    identity: ProcessIdentity(pid: pid, startTime: UInt64(pid)))
+        }
+        inspector.paths[1] = "/usr/libexec/secinitd"
+        inspector.paths[2] = "/Applications/Claude.app/Contents/MacOS/Claude"
+        let probe = ProcessProbe(inspector: inspector, clock: clock, ownUID: getuid())
+        _ = probe.sample()
+        clock.advance(1)
+        let entries = probe.sample() ?? []
+
+        #expect(entries.first { $0.pid == 1 }?.origin == .macOS)
+        #expect(entries.first { $0.pid == 2 }?.origin == .installed)
+        #expect(entries.first { $0.pid == 2 }?.executablePath?.hasSuffix("Claude") == true)
+    }
+
+    /// The path is read once per process, not on every sample — this table refreshes while you watch it.
+    @Test func pathsAreReadOncePerProcess() {
+        let clock = FakeClock()
+        let inspector = FakeInspector()
+        inspector.allPIDs = [7]
+        inspector.identities[7] = ProcessIdentity(pid: 7, startTime: 7)
+        inspector.details[7] = ProcessDetails(name: "p7", cpuSeconds: 1, memoryBytes: 1, threads: 1, uid: getuid(),
+                                              identity: ProcessIdentity(pid: 7, startTime: 7))
+        inspector.paths[7] = "/opt/homebrew/bin/node"
+        let probe = ProcessProbe(inspector: inspector, clock: clock, ownUID: getuid())
+        for _ in 0..<4 {
+            clock.advance(1)
+            _ = probe.sample()
+        }
+        #expect(inspector.pathLookups == 1)
+    }
 }

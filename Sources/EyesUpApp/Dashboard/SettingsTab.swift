@@ -146,6 +146,25 @@ struct SettingsTab: View {
                         }
                     }
 
+                    Section("Process list") {
+                        Picker("Font", selection: Binding(
+                            get: { settings.processFont },
+                            set: { font in environment.settings.update { $0.processFont = font } }
+                        )) {
+                            ForEach(TableFont.allCases, id: \.self) { font in Text(font.title).tag(font) }
+                        }
+                        Picker("Size", selection: Binding(
+                            get: { settings.processFontSize },
+                            set: { size in environment.settings.update { $0.processFontSize = size } }
+                        )) {
+                            ForEach(AppSettings.processFontSizes, id: \.self) { size in
+                                Text("\(Int(size)) pt").tag(size)
+                            }
+                        }
+                        Text("Used by the table on the Processes tab. Numbers always line up, whichever font you pick.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+
                     Section("Sleep types") {
                         Toggle("Also keep the disk awake (caffeinate -m)", isOn: Binding(
                             get: { settings.keepDiskAwake },

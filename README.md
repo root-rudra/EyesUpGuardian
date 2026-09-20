@@ -23,7 +23,7 @@ Each trigger can keep the display on too, stay awake for a grace period after it
 
 The dashboard's **Overview** shows CPU (with performance and efficiency core averages), memory and pressure, power draw in watts, temperature, fan speed, GPU use, disk, network, uptime, load and thermal state — plus **which other apps are keeping your Mac awake**, which is usually the answer to "why won't it sleep?".
 
-**Processes** lists what's running, sorted by CPU or memory, with a filter. Right-click any row to keep your Mac awake until that process exits, copy its PID, reveal it in Finder, or quit it (your own processes only, with a confirmation).
+**Processes** is a native table: click a column to sort, right-click the header to choose columns, and search by name or PID. Rows are grouped into **macOS** (shipped with the system, from the protected system volume) and **Installed** (everything you or an installer put there), or you can show one group on its own. Each row carries the real app icon. The refresh rate is yours to set — it defaults to five seconds, the same as Activity Monitor, and Settings → Process list changes the table's font and size. Right-click any row to keep your Mac awake until that process exits, copy its PID, reveal it in Finder, or quit it (your own processes only, with a confirmation).
 
 You can also put live stats in the menu bar next to the timer, and pin a small floating **HUD** that stays visible over other apps.
 

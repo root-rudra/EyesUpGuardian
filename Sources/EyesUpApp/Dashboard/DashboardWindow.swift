@@ -44,9 +44,16 @@ final class DashboardState {
         }
     }
 
-    var tab: Tab = .overview
+    var tab: Tab = .overview {
+        didSet { onTabChange?(tab) }
+    }
+
+    /// Set by the window controller: remembers the tab, so the dashboard reopens where you left it.
+    @ObservationIgnored var onTabChange: ((Tab) -> Void)?
     /// Kept for the window's lifetime so switching tabs doesn't restart sampling from scratch.
     var overviewStats: StatsViewModel?
+    /// The registry walks and disk sweeps, on a slower cadence than the headline numbers.
+    var overviewSlowStats: StatsViewModel?
     var processesStats: StatsViewModel?
     let processes = ProcessesState()
     let history = HistoryTabState()
@@ -68,20 +75,34 @@ final class DashboardWindowController: NSObject, NSWindowDelegate {
     }
 
     func show() {
+        // Qualified: SwiftUI has its own `Tab` type in scope here.
+        state.tab = DashboardState.Tab(rawValue: environment.settings.settings.dashboardTab) ?? state.tab
+        state.onTabChange = { [environment] tab in
+            environment.settings.update { $0.dashboardTab = tab.rawValue }
+        }
         if let window {
             window.makeKeyAndOrderFront(nil)
             NSApp.activate()
             return
         }
         if state.overviewStats == nil {
+            // Split by what it costs to read: CPU and memory are two cheap syscalls, while the GPU,
+            // disk and assertion probes walk the IOKit registry. The tiles all read one merged
+            // snapshot, so the slower half simply refreshes less often.
             state.overviewStats = StatsViewModel(
                 center: environment.metrics,
-                ids: [.cpu, .memory, .system, .storage, .network, .power, .fans, .temperature, .gpu, .otherAssertions],
+                ids: [.cpu, .memory, .system],
                 interval: 1
+            )
+            state.overviewSlowStats = StatsViewModel(
+                center: environment.metrics,
+                ids: [.storage, .network, .power, .fans, .temperature, .gpu, .otherAssertions],
+                interval: 5
             )
         }
         if state.processesStats == nil {
-            state.processesStats = StatsViewModel(center: environment.metrics, ids: [.processes, .system], interval: 2)
+            state.processesStats = StatsViewModel(center: environment.metrics, ids: [.processes, .system],
+                                              interval: environment.settings.settings.processRefreshSeconds)
         }
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 780, height: 540),
@@ -144,7 +165,9 @@ struct DashboardView: View {
                 AmbientBackground(mood: environment.controller.isAwake ? .awake : .idle)
                 switch state.tab {
                 case .overview:
-                    if let stats = state.overviewStats { OverviewTab(environment: environment, stats: stats) }
+                    if let stats = state.overviewStats, let slow = state.overviewSlowStats {
+                        OverviewTab(environment: environment, stats: stats, slowStats: slow)
+                    }
                 case .triggers: TriggersTab(environment: environment, state: state)
                 case .processes:
                     if let stats = state.processesStats {

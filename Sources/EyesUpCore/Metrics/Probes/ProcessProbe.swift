@@ -12,6 +12,9 @@ public final class ProcessProbe {
     private let ownUID: uid_t
     private var previous: [Int32: (cpuSeconds: Double, startTime: UInt64)] = [:]
     private var previousTime: Date?
+    /// A process's path never changes, so it is read once and kept under the identity that read it —
+    /// a recycled PID gets a fresh lookup rather than the last process's answer.
+    private var paths: [ProcessIdentity: String?] = [:]
 
     public init(inspector: any ProcessInspecting = LibprocInspector(), clock: any WallClock = SystemClock(), ownUID: uid_t = getuid()) {
         self.inspector = inspector
@@ -21,6 +24,13 @@ public final class ProcessProbe {
 
     static func displayName(_ raw: String) -> String {
         SafeText.display(raw, limit: maxNameLength)
+    }
+
+    private func cachedPath(of pid: Int32, identity: ProcessIdentity) -> String? {
+        if let known = paths[identity] { return known }
+        let path = inspector.executablePath(of: pid)
+        paths[identity] = path
+        return path
     }
 
     public func sample() -> [ProcessEntry]? {
@@ -39,6 +49,7 @@ public final class ProcessProbe {
                detail.cpuSeconds >= last.cpuSeconds {
                 percent = (detail.cpuSeconds - last.cpuSeconds) / elapsed * 100
             }
+            let path = cachedPath(of: pid, identity: detail.identity)
             entries.append(ProcessEntry(
                 pid: pid,
                 identity: detail.identity,
@@ -46,10 +57,13 @@ public final class ProcessProbe {
                 cpuPercent: percent,
                 memoryBytes: detail.memoryBytes,
                 threads: detail.threads,
-                isOwn: detail.uid == ownUID
+                isOwn: detail.uid == ownUID,
+                origin: ProcessOrigin.of(executablePath: path),
+                executablePath: path
             ))
         }
         previous = current
+        paths = paths.filter { entry in current[entry.key.pid]?.startTime == entry.key.startTime }
         guard elapsed > 0 else { return [] } // first pass only sets the baseline
         return Array(entries.sorted { $0.cpuPercent > $1.cpuPercent }.prefix(Self.limit))
     }

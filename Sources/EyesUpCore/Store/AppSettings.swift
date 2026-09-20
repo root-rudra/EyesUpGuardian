@@ -33,6 +33,20 @@ public enum MenuBarReadout: String, Codable, CaseIterable, Sendable {
     }
 }
 
+/// The typeface for the process table. The system font is what macOS's own windows use; the other
+/// two are there because a dense table of numbers reads differently to different people.
+public enum TableFont: String, Codable, CaseIterable, Sendable {
+    case system, rounded, monospaced
+
+    public var title: String {
+        switch self {
+        case .system: "System"
+        case .rounded: "Rounded"
+        case .monospaced: "Monospaced"
+        }
+    }
+}
+
 /// Where the floating HUD sits, in screen coordinates.
 public struct HUDPosition: Codable, Equatable, Sendable {
     public var x: Double
@@ -93,6 +107,14 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var keepDiskAwake: Bool
     /// caffeinate -s: prevent sleep only while on AC power.
     public var onlyOnACPower: Bool
+    /// Which dashboard tab to open on, by its own identifier. Unknown values fall back.
+    public var dashboardTab: String
+    /// How often the process table re-reads the process list, in seconds. Activity Monitor's own
+    /// default is 5 s, and it is the difference between about 1% of a core and about 4%.
+    public var processRefreshSeconds: Double
+    public var processFont: TableFont
+    /// Point size for the process table, 10-16.
+    public var processFontSize: Double
 
     public init(
         safetyCapHours: Double? = nil,
@@ -111,7 +133,11 @@ public struct AppSettings: Codable, Equatable, Sendable {
         globalShortcutEnabled: Bool = true,
         trackEnergy: Bool = true,
         keepDiskAwake: Bool = false,
-        onlyOnACPower: Bool = false
+        onlyOnACPower: Bool = false,
+        dashboardTab: String = "overview",
+        processRefreshSeconds: Double = 5,
+        processFont: TableFont = .system,
+        processFontSize: Double = 12
     ) {
         self.safetyCapHours = safetyCapHours
         self.thermalAutoRelease = thermalAutoRelease
@@ -130,6 +156,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
         self.trackEnergy = trackEnergy
         self.keepDiskAwake = keepDiskAwake
         self.onlyOnACPower = onlyOnACPower
+        self.dashboardTab = dashboardTab
+        self.processRefreshSeconds = processRefreshSeconds
+        self.processFont = processFont
+        self.processFontSize = processFontSize
     }
 
     public init(from decoder: any Decoder) throws {
@@ -152,7 +182,16 @@ public struct AppSettings: Codable, Equatable, Sendable {
         trackEnergy = try container.decodeIfPresent(Bool.self, forKey: .trackEnergy) ?? true
         keepDiskAwake = try container.decodeIfPresent(Bool.self, forKey: .keepDiskAwake) ?? false
         onlyOnACPower = try container.decodeIfPresent(Bool.self, forKey: .onlyOnACPower) ?? false
+        dashboardTab = try container.decodeIfPresent(String.self, forKey: .dashboardTab) ?? "overview"
+        processRefreshSeconds = try container.decodeIfPresent(Double.self, forKey: .processRefreshSeconds) ?? 5
+        processFont = (try? container.decodeIfPresent(TableFont.self, forKey: .processFont)) ?? .system
+        processFontSize = try container.decodeIfPresent(Double.self, forKey: .processFontSize) ?? 12
     }
+
+    /// The sizes the picker offers. A hand-edited file asking for 400 pt goes back to 12.
+    public static let processFontSizes: [Double] = [10, 11, 12, 13, 14, 16]
+    /// What the Processes tab offers, in seconds.
+    public static let processRefreshChoices: [Double] = [1, 2, 5, 10]
 
     public func validated(now: Date = Date()) -> AppSettings {
         var settings = self
@@ -177,6 +216,14 @@ public struct AppSettings: Codable, Equatable, Sendable {
             .filter { $0.isFinite && $0 >= 60 && $0 <= AwakeController.maxManualDuration }
             .sorted()
         settings.presets = usablePresets.isEmpty ? AppSettings().presets : Array(usablePresets.prefix(Self.maxPresets))
+        if settings.dashboardTab.count > 32 { settings.dashboardTab = "overview" }
+        if !(Self.processRefreshChoices.contains { abs($0 - settings.processRefreshSeconds) < 0.01 }) {
+            settings.processRefreshSeconds = 5
+        }
+        if !settings.processFontSize.isFinite
+            || !(Self.processFontSizes.contains { abs($0 - settings.processFontSize) < 0.01 }) {
+            settings.processFontSize = 12
+        }
         if !settings.headsUpLeadMinutes.isFinite
             || settings.headsUpLeadMinutes < Self.minHeadsUpLeadMinutes
             || settings.headsUpLeadMinutes > Self.maxHeadsUpLeadMinutes {

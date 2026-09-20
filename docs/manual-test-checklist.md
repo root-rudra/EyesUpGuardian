@@ -101,3 +101,14 @@ Run before every release. Each check needs a fresh `make app` build.
 - [ ] Reset settings asks first, then restores defaults, leaving triggers and history alone.
 - [ ] With only a trigger holding the Mac awake, ⌃⌥⌘E pauses the triggers (and pressing it again resumes them).
 - [ ] With an indefinite session running, the popover offers no "+30m"; the heads-up notification's +30 min explains why instead of doing nothing.
+
+## Processes tab (grouping, fonts, native look)
+- [ ] With **All** selected, rows sit under **macOS**, **Installed** and (if any) **Other** headings, each with a count.
+- [ ] **macOS** and **Installed** show only that kind; searching inside a group never falls back to everything.
+- [ ] Clicking a column header sorts by it, and clicking again reverses it.
+- [ ] Right-clicking the column header offers the columns, including **Kind**, which starts hidden.
+- [ ] Rows show real app icons; processes without a readable path show the group's symbol instead.
+- [ ] Settings → Process list changes the table's font and size immediately.
+- [ ] The **Update** menu changes the refresh rate; 5s is the default (Activity Monitor's own).
+- [ ] Opening the app again while it runs (Finder, Spotlight, `open -a`) shows the dashboard on the tab you left it on.
+- [ ] Dashboard open: Overview ~1.5-1.7% CPU, Processes ~1.3% at 5s, ~5% at 1s.

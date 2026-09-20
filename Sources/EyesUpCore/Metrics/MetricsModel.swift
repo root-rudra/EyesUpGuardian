@@ -100,9 +100,14 @@ public struct ProcessEntry: Identifiable, Equatable, Sendable {
     public var memoryBytes: UInt64
     public var threads: Int
     public var isOwn: Bool
+    /// macOS itself, or something installed on this Mac. Read once per process, not per sample.
+    public var origin: ProcessOrigin
+    /// The executable's path, when it is readable. Used for the row's icon and Reveal in Finder.
+    public var executablePath: String?
 
     public init(pid: Int32, identity: ProcessIdentity, name: String, cpuPercent: Double,
-                memoryBytes: UInt64, threads: Int, isOwn: Bool) {
+                memoryBytes: UInt64, threads: Int, isOwn: Bool,
+                origin: ProcessOrigin = .unknown, executablePath: String? = nil) {
         self.pid = pid
         self.identity = identity
         self.name = name
@@ -110,6 +115,8 @@ public struct ProcessEntry: Identifiable, Equatable, Sendable {
         self.memoryBytes = memoryBytes
         self.threads = threads
         self.isOwn = isOwn
+        self.origin = origin
+        self.executablePath = executablePath
     }
 }
 
